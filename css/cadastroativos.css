@@ -1,0 +1,12 @@
+/* 
+ * Cadastro de Ativos — estilos auxiliares
+ * Os estilos principais estao embutidos diretamente no controller
+ * para garantir que nao sejam sobrescritos pelos estilos do GLPI.
+ */
+
+/* Garante que os selects do GLPI (select2/chosen) fiquem dentro do grid */
+#ca-app .ca-dropdown-wrap .select2-container,
+#ca-app .ca-dropdown-wrap .chosen-container {
+    width: 100% !important;
+    max-width: 100% !important;
+}

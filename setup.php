@@ -5,7 +5,7 @@ use GlpiPlugin\Cadastroativos\Menu;
 
 include_once __DIR__ . '/hook.php';
 
-define('PLUGIN_CADASTROATIVOS_VERSION', '1.4.1');
+define('PLUGIN_CADASTROATIVOS_VERSION', '1.4.2');
 define('PLUGIN_CADASTROATIVOS_MIN_GLPI_VERSION', '11.0.0');
 define('PLUGIN_CADASTROATIVOS_MAX_GLPI_VERSION', '11.99.99');
 
@@ -34,8 +34,8 @@ function plugin_init_cadastroativos(): void
         ];
     }
 
-    $PLUGIN_HOOKS[Hooks::ADD_CSS]['cadastroativos']        = 'css/cadastroativos.css';
-    $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT]['cadastroativos'] = 'js/cadastroativos.js';
+    $PLUGIN_HOOKS[Hooks::ADD_CSS]['cadastroativos']        = 'css/cadastroativos.css?v=' . PLUGIN_CADASTROATIVOS_VERSION;
+    $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT]['cadastroativos'] = 'js/cadastroativos.js?v=' . PLUGIN_CADASTROATIVOS_VERSION;
 }
 
 function plugin_version_cadastroativos(): array

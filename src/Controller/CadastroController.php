@@ -170,7 +170,7 @@ final class CadastroController extends AbstractController
                         <?php foreach ($grupo['types'] as $sn => $label):
                             $cfg   = $typeConfig[$sn] ?? ['icon' => 'fa-box', 'color' => '#6b7280'];
                         ?>
-                        <div class="ca-type-btn" data-value="<?= Html::cleanInputText($sn) ?>" tabindex="0">
+                        <div class="ca-type-btn" data-value="<?= Html::cleanInputText($sn) ?>" <?= $sn === 'PlataformadeRecarga' ? 'data-hide-modelo="1"' : '' ?> tabindex="0">
                             <input type="radio" name="_tipo_radio" value="<?= Html::cleanInputText($sn) ?>">
                             <div class="ca-type-check"><i class="fas fa-check"></i></div>
                             <div class="ca-type-icon" style="background:<?= $cfg['color'] ?>22;color:<?= $cfg['color'] ?>">
@@ -242,6 +242,18 @@ final class CadastroController extends AbstractController
                                 <option value="Pedagogico">Pedagógico</option>
                                 <option value="Administrativo">Administrativo</option>
                             </select>
+                        </div>
+
+                        <!-- Avaliacao Tecnica -->
+                        <div class="ca-group ca-col-full">
+                            <label class="ca-label"><i class="fas fa-clipboard-check"></i> Avaliacao Tecnica</label>
+                            <input type="text" name="custom_avaliacao_tecnica" id="custom_avaliacao_tecnica" class="ca-input" placeholder="Ex: Bom estado, necessita troca de bateria..." maxlength="255">
+                        </div>
+
+                        <!-- Observacoes -->
+                        <div class="ca-group ca-col-full">
+                            <label class="ca-label"><i class="fas fa-comment-alt"></i> Observacoes</label>
+                            <textarea name="custom_observacao" id="custom_observacao" class="ca-input" placeholder="Informacoes adicionais sobre o ativo..." rows="3" style="resize:vertical;"></textarea>
                         </div>
 
                         <!-- N° Serie -->
@@ -419,6 +431,16 @@ function initCadastro() {
         tipoHidden.value = val;
         var radio = btn.querySelector('input[type="radio"]');
         if (radio) { radio.checked = true; }
+
+        // Esconder Modelo para Plataforma de Recarga
+        var hideModelo = btn.getAttribute('data-hide-modelo') === '1';
+        var modeloGroup = modelosSelect ? modelosSelect.closest('.ca-group') : null;
+        if (modeloGroup) {
+            modeloGroup.style.display = hideModelo ? 'none' : '';
+            modelosSelect.required = !hideModelo;
+            if (hideModelo) modelosSelect.value = '';
+        }
+
         carregarDropdowns(val);
         atualizarExtras(val);
         atualizarPreview();

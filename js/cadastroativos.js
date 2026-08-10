@@ -71,6 +71,16 @@ function initCadastro() {
         tipoHidden.value = val;
         var radio = btn.querySelector('input[type="radio"]');
         if (radio) { radio.checked = true; }
+
+        // Esconder Modelo para Plataforma de Recarga
+        var hideModelo = btn.getAttribute('data-hide-modelo') === '1';
+        var modeloGroup = modelosSelect ? modelosSelect.closest('.ca-group') : null;
+        if (modeloGroup) {
+            modeloGroup.style.display = hideModelo ? 'none' : '';
+            modelosSelect.required = !hideModelo;
+            if (hideModelo) modelosSelect.value = '';
+        }
+
         carregarDropdowns(val);
         atualizarExtras(val);
         atualizarPreview();

@@ -35,6 +35,8 @@ final class SalvarAtivoController extends AbstractController
         $armazenamento    = trim($request->request->getString('custom_armazenamento'));
         $tipoStorage      = trim($request->request->getString('custom_tipo_storage'));
         $imei             = trim($request->request->getString('custom_imei'));
+        $avaliacaoTecnica = trim($request->request->getString('custom_avaliacao_tecnica'));
+        $observacao       = trim($request->request->getString('custom_observacao'));
 
         // Validacoes
         if ($tipoAtivo === '' || !array_key_exists($tipoAtivo, $availableTypes)) {
@@ -46,9 +48,14 @@ final class SalvarAtivoController extends AbstractController
             $errors[] = 'O Numero de Inventario deve conter apenas numeros.';
         }
         if ($statesId <= 0)        { $errors[] = 'Selecione o Status.'; }
-        if ($modelsId <= 0)        { $errors[] = 'Selecione o Modelo.'; }
         if ($manufacturersId <= 0) { $errors[] = 'Selecione o Fabricante.'; }
         if ($typesId <= 0)         { $errors[] = 'Selecione o Tipo.'; }
+
+        // Modelo nao e obrigatorio para Plataforma de Recarga
+        if ($modelsId <= 0 && $tipoAtivo !== 'PlataformadeRecarga') {
+            $errors[] = 'Selecione o Modelo.';
+        }
+
         if ($temSerial && $serial === '') {
             $errors[] = 'Preencha o Numero de Serie.';
         }
@@ -67,22 +74,29 @@ final class SalvarAtivoController extends AbstractController
             return new JsonResponse(['success' => false, 'errors' => $errors]);
         }
 
-        $modelName = Dropdown::getDropdownName('glpi_assets_assetmodels', $modelsId);
-        $nomeFinal = $modelName . ' ' . AssetManager::buildAssetName($numeroInventario);
+        // Nome: Modelo + #inventario (sem modelo para Plataforma de Recarga)
+        if ($tipoAtivo === 'PlataformadeRecarga') {
+            $nomeFinal = 'Plataforma de Recarga ' . AssetManager::buildAssetName($numeroInventario);
+        } else {
+            $modelName = Dropdown::getDropdownName('glpi_assets_assetmodels', $modelsId);
+            $nomeFinal = $modelName . ' ' . AssetManager::buildAssetName($numeroInventario);
+        }
 
         // Custom fields
         $customFields = [];
-        if ($ambiente !== '')    { $customFields['ambiente']      = $ambiente; }
-        if ($memoriaRam !== '')  { $customFields['memoria_ram']   = $memoriaRam; }
-        if ($armazenamento !== '') { $customFields['armazenamento'] = $armazenamento; }
-        if ($tipoStorage !== '') { $customFields['tipo_storage']  = $tipoStorage; }
-        if ($imei !== '')        { $customFields['imei']          = $imei; }
+        if ($ambiente !== '')         { $customFields['ambiente']          = $ambiente; }
+        if ($memoriaRam !== '')        { $customFields['memoria_ram']       = $memoriaRam; }
+        if ($armazenamento !== '')     { $customFields['armazenamento']     = $armazenamento; }
+        if ($tipoStorage !== '')       { $customFields['tipo_storage']      = $tipoStorage; }
+        if ($imei !== '')              { $customFields['imei']              = $imei; }
+        if ($avaliacaoTecnica !== '')  { $customFields['avaliacao_tecnica'] = $avaliacaoTecnica; }
+        if ($observacao !== '')        { $customFields['observacao']        = $observacao; }
 
         $input = [
             'name'                  => $nomeFinal,
             'otherserial'           => $numeroInventario,
             'states_id'             => $statesId,
-            'assets_assetmodels_id' => $modelsId,
+            'assets_assetmodels_id' => $modelsId, // 0 para PlataformadeRecarga
             'manufacturers_id'      => $manufacturersId,
             'assets_assettypes_id'  => $typesId,
             'serial'                => $serial,

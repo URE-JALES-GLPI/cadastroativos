@@ -270,7 +270,10 @@ function initCadastro() {
                             if (el.type === 'checkbox' || el.type === 'radio') { el.checked = false; }
                             else { el.value = ''; }
                         });
-                        form.querySelectorAll('select').forEach(function (el) { el.selectedIndex = 0; });
+                        form.querySelectorAll('select').forEach(function (el) {
+                            el.selectedIndex = 0;
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        });
                         tipoHidden.value = '';
                         grid.querySelectorAll('.ca-type-btn').forEach(function (b) { b.classList.remove('active'); });
                         tiposSelect.innerHTML   = '<option value="">-- Selecione o tipo --</option>';

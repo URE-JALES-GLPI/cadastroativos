@@ -1,9 +1,5 @@
 <?php
 
-/**
- * Processa o POST do formulario de permissoes do plugin Cadastro de Ativos.
- */
-
 include('../../../inc/includes.php');
 
 Session::checkLoginUser();
@@ -12,28 +8,25 @@ Session::checkRight('profile', UPDATE);
 $profilesId = (int) ($_POST['profiles_id'] ?? 0);
 
 if ($profilesId > 0 && isset($_POST['update'])) {
+    $pr = new ProfileRight();
 
-    $rightsUse = (int) ($_POST['rights_use'] ?? 0);
+    $rights = [
+        PluginCadastroativosProfile::RIGHT_USE   => (int) ($_POST['rights_use']   ?? 0),
+        PluginCadastroativosProfile::RIGHT_INFRA => (int) ($_POST['rights_infra'] ?? 0),
+        PluginCadastroativosProfile::RIGHT_AV    => (int) ($_POST['rights_av']    ?? 0),
+    ];
 
-    $pr  = new ProfileRight();
-    $row = $pr->find([
-        'profiles_id' => $profilesId,
-        'name'        => PluginCadastroativosProfile::RIGHT_USE,
-    ]);
-
-    if (count($row) > 0) {
-        $existing = array_values($row)[0];
-        $pr->update(['id' => (int) $existing['id'], 'rights' => $rightsUse]);
-    } else {
-        $pr->add([
-            'profiles_id' => $profilesId,
-            'name'        => PluginCadastroativosProfile::RIGHT_USE,
-            'rights'      => $rightsUse,
-        ]);
+    foreach ($rights as $rightName => $value) {
+        $rows = $pr->find(['profiles_id' => $profilesId, 'name' => $rightName]);
+        if (count($rows) > 0) {
+            $existing = array_values($rows)[0];
+            $pr->update(['id' => (int) $existing['id'], 'rights' => $value]);
+        } else {
+            $pr->add(['profiles_id' => $profilesId, 'name' => $rightName, 'rights' => $value]);
+        }
     }
 
     PluginCadastroativosProfile::changeProfile();
-
     Session::addMessageAfterRedirect('Permissoes salvas com sucesso!', true, INFO);
 }
 

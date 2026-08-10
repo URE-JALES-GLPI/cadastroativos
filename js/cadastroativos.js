@@ -1,14 +1,12 @@
-/* Cadastro de Ativos - JS principal */
-
+/* Cadastro de Ativos — JS v1.5 */
 function initCadastro() {
     var grid = document.getElementById('ca-types-grid');
     if (!grid || grid._caInited) return;
     grid._caInited = true;
 
-    var cfg       = window.CA_CONFIG || { ajaxBase: '/plugins/cadastroativos/ajax/', root: '' };
-    var ajaxBase  = cfg.ajaxBase;
-    var root      = cfg.root;
-
+    var cfg           = window.CA_CONFIG || { ajaxBase: '/plugins/cadastroativos/ajax/', root: '' };
+    var ajaxBase      = cfg.ajaxBase;
+    var root          = cfg.root;
     var tipoHidden    = document.getElementById('tipo_ativo_hidden');
     var invInput      = document.getElementById('numero_inventario');
     var badgeTxt      = document.getElementById('ca-badge-txt');
@@ -20,12 +18,14 @@ function initCadastro() {
     var serialField   = document.getElementById('serial_field');
     var serialInput   = document.getElementById('serial');
     var panel         = document.getElementById('ca-panel');
+    var panelInner    = document.getElementById('ca-panel-inner');
     var panelList     = document.getElementById('ca-panel-list');
     var panelTitle    = document.getElementById('ca-panel-title');
     var panelCount    = document.getElementById('ca-panel-count');
     var panelIcon     = document.getElementById('ca-panel-icon');
     var msgContainer  = document.getElementById('ca-msg-container');
     var btnCadastrar  = document.getElementById('btn-cadastrar');
+    var mainEl        = document.getElementById('ca-main');
 
     if (!tipoHidden || !invInput) return;
 
@@ -35,10 +35,15 @@ function initCadastro() {
     };
 
     var typeIconMap = {
-        Celular:  { icon: 'fa-mobile-alt', color: '#6366f1' },
-        Notebook: { icon: 'fa-laptop',     color: '#0ea5e9' },
-        Tablet:   { icon: 'fa-tablet-alt', color: '#10b981' },
-        Desktop:  { icon: 'fa-desktop',    color: '#f59e0b' }
+        Celular:             { icon: 'fa-mobile-alt',       color: '#6366f1' },
+        Notebook:            { icon: 'fa-laptop',            color: '#0ea5e9' },
+        Tablet:              { icon: 'fa-tablet-alt',        color: '#10b981' },
+        Desktop:             { icon: 'fa-desktop',           color: '#f59e0b' },
+        Switch:              { icon: 'fa-network-wired',     color: '#64748b' },
+        Firewall:            { icon: 'fa-shield-alt',        color: '#ef4444' },
+        RackdeRede:          { icon: 'fa-server',            color: '#8b5cf6' },
+        Televisao:           { icon: 'fa-tv',                color: '#06b6d4' },
+        PlataformadeRecarga: { icon: 'fa-charging-station',  color: '#22c55e' }
     };
 
     /* Toggle serial */
@@ -50,7 +55,7 @@ function initCadastro() {
         });
     }
 
-    /* Cards de tipo */
+    /* Cards — event delegation em todos os grupos */
     grid.addEventListener('click', function (e) {
         var el = e.target;
         while (el && el !== grid) {
@@ -76,8 +81,7 @@ function initCadastro() {
     /* Extras por tipo */
     function atualizarExtras(tipo) {
         Object.keys(extras).forEach(function (t) {
-            var s = extras[t];
-            if (!s) { return; }
+            var s = extras[t]; if (!s) return;
             s.style.display = 'none';
             s.querySelectorAll('.ca-extra-input').forEach(function (el) { el.value = ''; });
         });
@@ -131,92 +135,86 @@ function initCadastro() {
     }
 
     /* Painel lateral */
+    function ajustarAlturaPainel() {
+        if (!mainEl || !panel || panel.style.display === 'none') return;
+        var h = mainEl.getBoundingClientRect().height;
+        if (panelInner) {
+            panelInner.style.height    = h + 'px';
+            panelInner.style.maxHeight = h + 'px';
+        }
+        if (panelList) {
+            var headerH = panelInner && panelInner.querySelector('#ca-panel-header')
+                ? panelInner.querySelector('#ca-panel-header').offsetHeight : 60;
+            panelList.style.maxHeight = (h - headerH - 2) + 'px';
+            panelList.style.overflowY = 'auto';
+        }
+    }
+
+    if (window.ResizeObserver && mainEl) {
+        new ResizeObserver(function () { ajustarAlturaPainel(); }).observe(mainEl);
+    }
+
     function carregarPainel(tipo) {
-        if (!panel) { return; }
+        if (!panel) return;
         if (!tipo) { panel.style.display = 'none'; return; }
         var c = typeIconMap[tipo] || { icon: 'fa-box', color: '#6b7280' };
         panel.style.display = 'block';
+        ajustarAlturaPainel();
         if (panelIcon)  { panelIcon.style.background = c.color; panelIcon.innerHTML = '<i class="fas ' + c.icon + '"></i>'; }
-        if (panelTitle) { panelTitle.textContent = tipo + 's cadastrados'; }
-        if (panelCount) { panelCount.textContent  = 'carregando...'; }
-        if (panelList)  { panelList.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>'; }
+        if (panelTitle) { panelTitle.textContent = tipo.replace('deRede', ' de Rede').replace('de Recarga', ' de Recarga') + 's cadastrados'; }
+        if (panelCount) { panelCount.textContent = 'carregando...'; }
+        if (panelList)  { panelList.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i></div>'; }
 
         fetch(ajaxBase + 'ListarAtivos?tipo_ativo=' + encodeURIComponent(tipo), { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 var ativos = data.ativos || [];
                 if (panelCount) {
-                    panelCount.textContent = ativos.length + ' ativo' + (ativos.length !== 1 ? 's' : '') + ' cadastrado' + (ativos.length !== 1 ? 's' : '');
+                    panelCount.textContent = ativos.length + ' cadastrado' + (ativos.length !== 1 ? 's' : '');
                 }
-                if (!panelList) { return; }
+                if (!panelList) return;
                 if (ativos.length === 0) {
-                    panelList.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:.85rem;"><i class="fas fa-inbox" style="font-size:1.8rem;display:block;margin-bottom:8px;opacity:.4;"></i>Nenhum ativo cadastrado<br>nesta entidade ainda.</div>';
+                    panelList.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.82rem;"><i class="fas fa-inbox" style="font-size:1.6rem;display:block;margin-bottom:6px;opacity:.4;"></i>Nenhum ativo cadastrado.</div>';
                     return;
                 }
-                var lastInv = 0;
-                var rows = '';
-                ativos.forEach(function (a) {
-                    var inv = parseInt(a.otherserial, 10) || 0;
-                    if (inv > lastInv) { lastInv = inv; }
-                    rows += '<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid #f1f5f9;">'
-                          +   '<div style="width:34px;height:34px;border-radius:8px;background:' + c.color + '22;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
-                          +     '<span style="font-size:.7rem;font-weight:800;color:' + c.color + ';">' + (a.otherserial || '-') + '</span>'
-                          +   '</div>'
-                          +   '<div style="min-width:0;flex:1;">'
-                          +     '<div style="font-size:.82rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + a.name + '">' + a.name + '</div>'
-                          +     '<div style="font-size:.72rem;color:#94a3b8;">' + (a.modelo || '') + '</div>'
-                          +   '</div>'
-                          +   '<a href="' + root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipo) + '&id=' + a.id + '" target="_blank" style="color:#cbd5e1;font-size:.75rem;flex-shrink:0;"><i class="fas fa-external-link-alt"></i></a>'
-                          + '</div>';
-                });
-                var proximo = lastInv + 1;
-                rows += '<div style="padding:10px 16px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">'
-                      +   '<span style="font-size:.75rem;color:#64748b;">Proximo sugerido: </span>'
-                      +   '<strong id="ca-proximo" style="font-size:.82rem;color:#f59e0b;cursor:pointer;" data-num="' + proximo + '">'
-                      +     '#' + proximo + ' <i class="fas fa-mouse-pointer" style="font-size:.65rem;"></i>'
-                      +   '</strong>'
-                      + '</div>';
+                var rows = ativos.map(function (a) {
+                    return '<div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f8fafc;">'
+                        + '<div style="width:32px;height:32px;border-radius:7px;background:' + c.color + '18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+                        + '<span style="font-size:.68rem;font-weight:800;color:' + c.color + ';">' + (a.otherserial || '-') + '</span>'
+                        + '</div>'
+                        + '<div style="min-width:0;flex:1;">'
+                        + '<div style="font-size:.8rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + a.name + '">' + a.name + '</div>'
+                        + '<div style="font-size:.7rem;color:#94a3b8;">' + (a.modelo || '') + '</div>'
+                        + '</div>'
+                        + '<a href="' + root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipo) + '&id=' + a.id + '" target="_blank" style="color:#cbd5e1;font-size:.72rem;flex-shrink:0;"><i class="fas fa-external-link-alt"></i></a>'
+                        + '</div>';
+                }).join('');
                 panelList.innerHTML = rows;
-
-                /* Clique no proximo sugerido */
-                var elProximo = document.getElementById('ca-proximo');
-                if (elProximo) {
-                    elProximo.addEventListener('click', function () {
-                        invInput.value = this.getAttribute('data-num');
-                        invInput.dispatchEvent(new Event('input'));
-                        invInput.focus();
-                    });
-                }
+                setTimeout(ajustarAlturaPainel, 50);
             })
             .catch(function () {
-                if (panelList) { panelList.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">Erro ao carregar lista.</div>'; }
+                if (panelList) panelList.innerHTML = '<div style="padding:16px;text-align:center;color:#ef4444;font-size:.82rem;">Erro ao carregar.</div>';
             });
     }
 
     /* Validacao duplicidade */
     function validarDup() {
-        var tipo = tipoHidden.value;
-        var num  = invInput.value.trim();
-        limparDup();
-        if (!tipo || !num) { return; }
+        var tipo = tipoHidden.value, num = invInput.value.trim();
+        limparDup(); if (!tipo || !num) return;
         fetch(ajaxBase + 'CheckInventory?tipo_ativo=' + encodeURIComponent(tipo) + '&numero_inventario=' + encodeURIComponent(num), { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
-            .then(function (d) { if (d.duplicado) { mostrarDup(); } })
+            .then(function (d) { if (d.duplicado) mostrarDup(); })
             .catch(function () {});
     }
     function mostrarDup() {
-        limparDup();
-        invInput.classList.add('ca-error');
-        var d = document.createElement('div');
-        d.id = 'ca-dup-msg';
-        d.className = 'ca-dup';
+        limparDup(); invInput.classList.add('ca-error');
+        var d = document.createElement('div'); d.id = 'ca-dup-msg'; d.className = 'ca-dup';
         d.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Numero ja utilizado nesta entidade para este tipo.';
         dupContainer.appendChild(d);
     }
     function limparDup() {
         invInput.classList.remove('ca-error');
-        var el = document.getElementById('ca-dup-msg');
-        if (el) { el.remove(); }
+        var el = document.getElementById('ca-dup-msg'); if (el) el.remove();
     }
     var timer;
     invInput.addEventListener('blur', function () { clearTimeout(timer); timer = setTimeout(validarDup, 250); });
@@ -225,7 +223,7 @@ function initCadastro() {
     if (btnCadastrar) {
         btnCadastrar.addEventListener('click', function () {
             var form = document.getElementById('form_cadastro_ativo_ajax');
-            if (!form || !form.checkValidity()) { if (form) { form.reportValidity(); } return; }
+            if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
             btnCadastrar.disabled = true;
             btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
             var data = new FormData(form);
@@ -240,11 +238,12 @@ function initCadastro() {
                         grid.querySelectorAll('.ca-type-btn').forEach(function (b) { b.classList.remove('active'); });
                         tiposSelect.innerHTML   = '<option value="">-- Selecione o tipo --</option>';
                         modelosSelect.innerHTML = '<option value="">-- Selecione o tipo --</option>';
-                        Object.keys(extras).forEach(function (t) { var s = extras[t]; if (s) { s.style.display = 'none'; } });
-                        if (serialField) { serialField.style.display = 'none'; }
+                        Object.keys(extras).forEach(function (t) { var s = extras[t]; if (s) s.style.display = 'none'; });
+                        if (serialField) serialField.style.display = 'none';
+                        if (panel) panel.style.display = 'none';
                         atualizarPreview();
-                        if (resp.tipoAtivo) { carregarPainel(resp.tipoAtivo); }
                         window.scrollTo({ top: 0, behavior: 'smooth' });
+                        if (resp.tipoAtivo) { setTimeout(function () { carregarPainel(resp.tipoAtivo); }, 300); }
                     } else {
                         mostrarErro(resp.errors || ['Erro desconhecido.']);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -259,18 +258,18 @@ function initCadastro() {
     }
 
     function mostrarSucesso(nome, id, tipo) {
-        if (!msgContainer) { return; }
+        if (!msgContainer) return;
         var url = root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipo) + '&id=' + id;
         msgContainer.innerHTML = '<div class="ca-msg success" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
-            + '<div style="display:flex;gap:12px;align-items:center;"><i class="fas fa-check-circle ca-msg-icon"></i>'
+            + '<div style="display:flex;gap:12px;align-items:center;"><i class="fas fa-check-circle" style="font-size:1.1rem;flex-shrink:0;"></i>'
             + '<div><strong>Ativo cadastrado com sucesso!</strong><br>O ativo <strong>' + nome + '</strong> foi registrado no GLPI.</div></div>'
-            + '<a href="' + url + '" style="padding:8px 18px;background:#16a34a;color:#fff;border-radius:8px;font-size:.85rem;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">'
-            + '<i class="fas fa-external-link-alt"></i> Visualizar Ativo</a></div>';
+            + '<a href="' + url + '" style="padding:7px 16px;background:#16a34a;color:#fff;border-radius:8px;font-size:.82rem;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">'
+            + '<i class="fas fa-external-link-alt"></i> Visualizar</a></div>';
     }
     function mostrarErro(erros) {
-        if (!msgContainer) { return; }
-        msgContainer.innerHTML = '<div class="ca-msg error"><i class="fas fa-exclamation-circle ca-msg-icon"></i>'
-            + '<div><strong>Corrija os erros abaixo:</strong><ul>'
+        if (!msgContainer) return;
+        msgContainer.innerHTML = '<div class="ca-msg error"><i class="fas fa-exclamation-circle" style="font-size:1.1rem;flex-shrink:0;margin-top:2px;"></i>'
+            + '<div><strong>Corrija os erros:</strong><ul style="margin:5px 0 0;padding-left:16px;">'
             + erros.map(function (e) { return '<li>' + e + '</li>'; }).join('')
             + '</ul></div></div>';
     }
@@ -278,32 +277,6 @@ function initCadastro() {
     atualizarPreview();
 }
 
-/* Ajusta altura do painel para igualar o card esquerdo */
-function ajustarAlturaPainel() {
-    var main  = document.getElementById('ca-main');
-    var panel = document.getElementById('ca-panel');
-    if (!main || !panel || panel.style.display === 'none') { return; }
-    var mainH = main.offsetHeight;
-    panel.style.height    = mainH + 'px';
-    panel.style.maxHeight = mainH + 'px';
-    panel.style.overflowY = 'hidden';
-    // A lista interna rola dentro da altura disponivel
-    var list = document.getElementById('ca-panel-list');
-    if (list) {
-        var headerH = panel.querySelector('div > div').offsetHeight || 60;
-        list.style.maxHeight = (mainH - headerH) + 'px';
-        list.style.overflowY = 'auto';
-    }
-}
-
-/* Observa mudancas de tamanho no card esquerdo */
-if (window.ResizeObserver) {
-    var ro = new ResizeObserver(function() { ajustarAlturaPainel(); });
-    var mainEl = document.getElementById('ca-main');
-    if (mainEl) { ro.observe(mainEl); }
-}
-
-/* Inicializa assim que possivel */
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCadastro);
 } else {
@@ -311,6 +284,5 @@ if (document.readyState === 'loading') {
 }
 window.addEventListener('load', function () {
     var g = document.getElementById('ca-types-grid');
-    if (g && !g._caInited) { initCadastro(); }
-    ajustarAlturaPainel();
+    if (g && !g._caInited) initCadastro();
 });

@@ -1,17 +1,11 @@
 <?php
 
-/**
- * -------------------------------------------------------------------------
- * Plugin Cadastro de Ativos para GLPI 11
- * -------------------------------------------------------------------------
- */
-
 use Glpi\Plugin\Hooks;
 use GlpiPlugin\Cadastroativos\Menu;
 
 include_once __DIR__ . '/hook.php';
 
-define('PLUGIN_CADASTROATIVOS_VERSION', '1.3.0');
+define('PLUGIN_CADASTROATIVOS_VERSION', '1.4.0');
 define('PLUGIN_CADASTROATIVOS_MIN_GLPI_VERSION', '11.0.0');
 define('PLUGIN_CADASTROATIVOS_MAX_GLPI_VERSION', '11.99.99');
 
@@ -19,28 +13,27 @@ function plugin_init_cadastroativos(): void
 {
     global $PLUGIN_HOOKS;
 
-    // CSRF obrigatorio
     $PLUGIN_HOOKS['csrf_compliant']['cadastroativos'] = true;
 
-    // Registra a classe de perfil para aparecer a aba em Administracao > Perfis
     Plugin::registerClass('PluginCadastroativosProfile', [
         'addtabon' => ['Profile'],
     ]);
 
-    // Atualiza sessao ao trocar de perfil
     $PLUGIN_HOOKS['change_profile']['cadastroativos'] = [
-        'PluginCadastroativosProfile',
-        'changeProfile',
+        'PluginCadastroativosProfile', 'changeProfile',
     ];
 
-    // Menu Ferramentas — o GLPI filtra automaticamente pelo $rightname da classe Menu
-    // Nao verificamos Session::haveRight aqui pois a sessao pode nao ter
-    // os direitos do plugin carregados ainda neste momento do boot
-    $PLUGIN_HOOKS[Hooks::MENU_TOADD]['cadastroativos'] = [
-        'tools' => Menu::class,
-    ];
+    // Menu aparece se usuario tiver qualquer um dos direitos
+    if (
+        Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT, READ) ||
+        Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_INFRA, READ) ||
+        Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_AV, READ)
+    ) {
+        $PLUGIN_HOOKS[Hooks::MENU_TOADD]['cadastroativos'] = [
+            'tools' => Menu::class,
+        ];
+    }
 
-    // CSS e JS
     $PLUGIN_HOOKS[Hooks::ADD_CSS]['cadastroativos']        = 'css/cadastroativos.css';
     $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT]['cadastroativos'] = 'js/cadastroativos.js';
 }

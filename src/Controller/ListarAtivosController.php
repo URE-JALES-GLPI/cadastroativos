@@ -10,17 +10,12 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Retorna ativos cadastrados na entidade ativa para um tipo,
- * ordenados por ID decrescente (ultimo cadastrado primeiro).
- */
 final class ListarAtivosController extends AbstractController
 {
     #[Route('/ajax/ListarAtivos', name: 'cadastroativos_listar', methods: ['GET'])]
     public function __invoke(Request $request): Response
     {
         Session::checkLoginUser();
-        Session::checkRight('plugin_cadastroativos_use', READ);
 
         $systemName     = $request->query->getString('tipo_ativo');
         $availableTypes = AssetManager::getAvailableTypes();
@@ -39,7 +34,6 @@ final class ListarAtivosController extends AbstractController
 
         global $DB;
 
-        // Ordem decrescente por ID = ultimo cadastrado primeiro
         $iterator = $DB->request([
             'SELECT' => ['id', 'name', 'otherserial', 'assets_assetmodels_id'],
             'FROM'   => 'glpi_assets_assets',
@@ -63,7 +57,6 @@ final class ListarAtivosController extends AbstractController
                 ])->current();
                 $modelName = $modelRow['name'] ?? '';
             }
-
             $ativos[] = [
                 'id'          => (int) $row['id'],
                 'name'        => $row['name'] ?? '',

@@ -10,23 +10,12 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Endpoint AJAX: retorna Tipos e Modelos filtrados pela Asset Definition
- * correspondente ao Tipo de Ativo selecionado no formulario.
- *
- * Acesso protegido pelo direito proprio do plugin (plugin_cadastroativos_use).
- */
 final class GetTypesModelsController extends AbstractController
 {
-    #[Route(
-        '/ajax/GetTypesModels',
-        name: 'cadastroativos_get_types_models',
-        methods: ['GET', 'POST']
-    )]
+    #[Route('/ajax/GetTypesModels', name: 'cadastroativos_get_types_models', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         Session::checkLoginUser();
-        Session::checkRight('plugin_cadastroativos_use', READ);
 
         $systemName     = $request->query->getString('tipo_ativo');
         $availableTypes = AssetManager::getAvailableTypes();
@@ -36,7 +25,6 @@ final class GetTypesModelsController extends AbstractController
         }
 
         $definition = AssetManager::getDefinition($systemName);
-
         if ($definition === null) {
             return new JsonResponse(['types' => [], 'models' => []]);
         }

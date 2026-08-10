@@ -11,17 +11,12 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Endpoint AJAX para salvar o ativo sem recarregar a pagina.
- * Retorna JSON com {success, errors, id, nome, tipoAtivo}
- */
 final class SalvarAtivoController extends AbstractController
 {
     #[Route('/ajax/SalvarAtivo', name: 'cadastroativos_salvar', methods: ['POST'])]
     public function __invoke(Request $request): Response
     {
         Session::checkLoginUser();
-        Session::checkRight('plugin_cadastroativos_use', READ);
 
         $currentEntityId  = AssetManager::getCurrentEntityId();
         $availableTypes   = AssetManager::getAvailableTypes();
@@ -35,6 +30,7 @@ final class SalvarAtivoController extends AbstractController
         $typesId          = $request->request->getInt('assets_assettypes_id');
         $temSerial        = $request->request->getString('tem_serial') === '1';
         $serial           = $temSerial ? trim($request->request->getString('serial')) : '';
+        $ambiente         = trim($request->request->getString('custom_ambiente'));
         $memoriaRam       = trim($request->request->getString('custom_memoria_ram'));
         $armazenamento    = trim($request->request->getString('custom_armazenamento'));
         $tipoStorage      = trim($request->request->getString('custom_tipo_storage'));
@@ -54,14 +50,14 @@ final class SalvarAtivoController extends AbstractController
         if ($manufacturersId <= 0) { $errors[] = 'Selecione o Fabricante.'; }
         if ($typesId <= 0)         { $errors[] = 'Selecione o Tipo.'; }
         if ($temSerial && $serial === '') {
-            $errors[] = 'Preencha o Numero de Serie (voce indicou que o ativo possui).';
+            $errors[] = 'Preencha o Numero de Serie.';
         }
 
         // Unicidade
         if (empty($errors)) {
             if (AssetManager::inventoryNumberExists($tipoAtivo, $numeroInventario, $currentEntityId)) {
                 $errors[] = sprintf(
-                    'O Numero de Inventario "%s" ja esta em uso nesta entidade para este tipo de ativo.',
+                    'O Numero de Inventario "%s" ja esta em uso nesta entidade para este tipo.',
                     $numeroInventario
                 );
             }
@@ -71,22 +67,16 @@ final class SalvarAtivoController extends AbstractController
             return new JsonResponse(['success' => false, 'errors' => $errors]);
         }
 
-        // Monta nome: Modelo + #inventario
         $modelName = Dropdown::getDropdownName('glpi_assets_assetmodels', $modelsId);
         $nomeFinal = $modelName . ' ' . AssetManager::buildAssetName($numeroInventario);
 
         // Custom fields
         $customFields = [];
-        if (in_array($tipoAtivo, ['Celular', 'Desktop'])) {
-            if ($memoriaRam)    { $customFields['memoria_ram']   = $memoriaRam; }
-            if ($armazenamento) { $customFields['armazenamento'] = $armazenamento; }
-        }
-        if ($tipoAtivo === 'Desktop' && $tipoStorage) {
-            $customFields['tipo_storage'] = $tipoStorage;
-        }
-        if ($tipoAtivo === 'Celular' && $imei) {
-            $customFields['imei'] = $imei;
-        }
+        if ($ambiente !== '')    { $customFields['ambiente']      = $ambiente; }
+        if ($memoriaRam !== '')  { $customFields['memoria_ram']   = $memoriaRam; }
+        if ($armazenamento !== '') { $customFields['armazenamento'] = $armazenamento; }
+        if ($tipoStorage !== '') { $customFields['tipo_storage']  = $tipoStorage; }
+        if ($imei !== '')        { $customFields['imei']          = $imei; }
 
         $input = [
             'name'                  => $nomeFinal,

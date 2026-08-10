@@ -366,6 +366,12 @@ final class CadastroController extends AbstractController
             ajaxBase: (typeof CFG_GLPI !== 'undefined' ? CFG_GLPI.root_doc : '') + '/plugins/cadastroativos/ajax/',
             root: (typeof CFG_GLPI !== 'undefined' ? CFG_GLPI.root_doc : '')
         };
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof initCadastro === 'function' || !document.getElementById('ca-types-grid')) return;
+            var s = document.createElement('script');
+            s.src = CA_CONFIG.root + '/plugins/cadastroativos/js/cadastroativos.js';
+            document.head.appendChild(s);
+        });
         </script>
         <?php
 

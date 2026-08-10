@@ -111,7 +111,7 @@ function initCadastro() {
             + '<button type="button" class="ca-modal-cancel">Cancelar</button>'
             + '<button type="button" class="ca-modal-save">Salvar</button>'
             + '</div></div>';
-        document.body.appendChild(overlay);
+        document.getElementById('ca-app').appendChild(overlay);
         var input = overlay.querySelector('#ca-modal-nome');
         var errEl = overlay.querySelector('#ca-modal-err');
         var saveBtn = overlay.querySelector('.ca-modal-save');

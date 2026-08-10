@@ -63,9 +63,12 @@ final class AddDropdownController extends AbstractController
                 'name'                       => $nome,
             ];
 
-            $fqcn = $campo === 'assets_assettypes_id' ? 'Glpi\Asset\AssetType' : 'Glpi\Asset\AssetModel';
-            if (class_exists($fqcn)) {
-                $item  = new $fqcn();
+            $concreteClass = $campo === 'assets_assettypes_id'
+                ? AssetManager::getTypeClass($systemName)
+                : AssetManager::getModelClass($systemName);
+
+            if ($concreteClass !== null) {
+                $item  = new $concreteClass();
                 $newId = $item->add($input);
             } else {
                 $now = date('Y-m-d H:i:s');

@@ -56,6 +56,22 @@ class AssetManager
         return $definition?->getAssetClassName();
     }
 
+    public static function getTypeClass(string $systemName): ?string
+    {
+        $definition = self::getDefinition($systemName);
+        if ($definition === null || !method_exists($definition, 'getAssetTypeClassName')) return null;
+        $class = $definition->getAssetTypeClassName();
+        return class_exists($class) ? $class : null;
+    }
+
+    public static function getModelClass(string $systemName): ?string
+    {
+        $definition = self::getDefinition($systemName);
+        if ($definition === null || !method_exists($definition, 'getAssetModelClassName')) return null;
+        $class = $definition->getAssetModelClassName();
+        return class_exists($class) ? $class : null;
+    }
+
     public static function buildAssetName(string $inventoryNumber): string
     {
         return '#' . trim($inventoryNumber);

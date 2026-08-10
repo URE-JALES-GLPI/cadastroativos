@@ -135,6 +135,11 @@ final class CadastroController extends AbstractController
         #ca-app #ca-panel-title { font-weight:700; font-size:.82rem; color:#0f172a; }
         #ca-app #ca-panel-count { font-size:.7rem; color:#94a3b8; }
         #ca-app #ca-panel-list { overflow-y:auto; padding:4px 0; }
+        #ca-app .ca-dropdown-wrap .select2-container,
+        #ca-app .ca-dropdown-wrap .chosen-container {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
         </style>
 
         <div id="ca-app">
@@ -366,12 +371,9 @@ final class CadastroController extends AbstractController
             ajaxBase: (typeof CFG_GLPI !== 'undefined' ? CFG_GLPI.root_doc : '') + '/plugins/cadastroativos/ajax/',
             root: (typeof CFG_GLPI !== 'undefined' ? CFG_GLPI.root_doc : '')
         };
-        document.addEventListener('DOMContentLoaded', function () {
-            if (typeof initCadastro === 'function' || !document.getElementById('ca-types-grid')) return;
-            var s = document.createElement('script');
-            s.src = CA_CONFIG.root + '/plugins/cadastroativos/js/cadastroativos.js';
-            document.head.appendChild(s);
-        });
+        </script>
+        <script>
+        <?php echo file_get_contents(__DIR__ . '/../../js/cadastroativos.js'); ?>
         </script>
         <?php
 

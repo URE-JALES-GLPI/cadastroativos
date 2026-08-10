@@ -33,9 +33,6 @@ function plugin_init_cadastroativos(): void
             'tools' => Menu::class,
         ];
     }
-
-    $PLUGIN_HOOKS[Hooks::ADD_CSS]['cadastroativos']        = 'css/cadastroativos.css';
-    $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT]['cadastroativos'] = 'js/cadastroativos.js';
 }
 
 function plugin_version_cadastroativos(): array

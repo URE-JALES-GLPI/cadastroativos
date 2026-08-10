@@ -124,6 +124,21 @@ final class CadastroController extends AbstractController
         #ca-app .ca-extras-grid .ca-col-full { grid-column:1/-1; }
         #ca-app .ca-storage-row { display:grid; grid-template-columns:130px 1fr; gap:8px; }
         #ca-app .ca-dup { display:flex; align-items:center; gap:7px; padding:7px 11px; background:#fee2e2; border:1px solid #fca5a5; border-radius:7px; font-size:.78rem; color:#991b1b; margin-top:5px; }
+        #ca-app .ca-add-btn { margin-left:auto; width:22px; height:22px; border-radius:6px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#64748b; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:.66rem; padding:0; transition:all .15s; }
+        #ca-app .ca-add-btn:hover:not(:disabled) { border-color:#f59e0b; color:#f59e0b; background:#fff; }
+        #ca-app .ca-add-btn:disabled { opacity:.35; cursor:not-allowed; }
+        #ca-app #ca-modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; z-index:1050; }
+        #ca-app #ca-modal { background:#fff; border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,.25); width:380px; max-width:calc(100vw - 32px); padding:20px; }
+        #ca-app #ca-modal h3 { margin:0 0 4px; font-size:.95rem; color:#0f172a; }
+        #ca-app #ca-modal .ca-modal-sub { margin:0 0 14px; font-size:.78rem; color:#64748b; }
+        #ca-app #ca-modal input { width:100%; padding:9px 13px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:.88rem; outline:none; }
+        #ca-app #ca-modal input:focus { border-color:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,.14); }
+        #ca-app #ca-modal .ca-modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+        #ca-app #ca-modal .ca-modal-actions button { padding:8px 16px; border-radius:8px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; }
+        #ca-app #ca-modal .ca-modal-cancel { background:#f1f5f9; color:#475569; }
+        #ca-app #ca-modal .ca-modal-save { background:linear-gradient(135deg,#f59e0b,#fbbf24); color:#fff; }
+        #ca-app #ca-modal .ca-modal-save:disabled { opacity:.6; cursor:wait; }
+        #ca-app #ca-modal .ca-modal-err { color:#b91c1c; font-size:.76rem; margin-top:8px; }
         #ca-app .ca-footer { display:flex; align-items:center; justify-content:space-between; margin-top:20px; padding-top:16px; border-top:1px solid #f1f5f9; gap:12px; flex-wrap:wrap; }
         #ca-app .ca-entity { display:flex; align-items:center; gap:6px; font-size:.78rem; color:#64748b; font-weight:600; background:#f8fafc; padding:6px 13px; border-radius:20px; border:1px solid #e2e8f0; }
         #ca-app .ca-submit { padding:10px 26px; background:linear-gradient(135deg,#f59e0b,#fbbf24); color:#fff; border:none; border-radius:10px; font-size:.9rem; font-weight:700; cursor:pointer; box-shadow:0 4px 14px rgba(245,158,11,.35); display:flex; align-items:center; gap:7px; transition:all .18s; }
@@ -226,7 +241,9 @@ final class CadastroController extends AbstractController
 
                         <!-- Tipo dinamico -->
                         <div class="ca-group">
-                            <label class="ca-label"><i class="fas fa-layer-group"></i> Tipo <span class="ca-req">*</span></label>
+                            <label class="ca-label"><i class="fas fa-layer-group"></i> Tipo <span class="ca-req">*</span>
+                                <button type="button" class="ca-add-btn" data-campo="assets_assettypes_id" title="Cadastrar novo Tipo" disabled><i class="fas fa-plus"></i></button>
+                            </label>
                             <select name="assets_assettypes_id" id="assets_assettypes_id" class="ca-select" required>
                                 <option value="">-- Selecione o tipo de ativo --</option>
                             </select>
@@ -234,7 +251,9 @@ final class CadastroController extends AbstractController
 
                         <!-- Modelo dinamico -->
                         <div class="ca-group">
-                            <label class="ca-label"><i class="fas fa-cube"></i> Modelo <span class="ca-req">*</span></label>
+                            <label class="ca-label"><i class="fas fa-cube"></i> Modelo <span class="ca-req">*</span>
+                                <button type="button" class="ca-add-btn" data-campo="assets_assetmodels_id" title="Cadastrar novo Modelo" disabled><i class="fas fa-plus"></i></button>
+                            </label>
                             <select name="assets_assetmodels_id" id="assets_assetmodels_id" class="ca-select" required>
                                 <option value="">-- Selecione o tipo de ativo --</option>
                             </select>

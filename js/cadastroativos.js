@@ -87,7 +87,85 @@ function initCadastro() {
         atualizarPreview();
         validarDup();
         carregarPainel(val);
+        atualizarAddBtns();
     }
+
+    /* Botoes [+] Tipo/Modelo */
+    var addTipoBtn    = document.querySelector('.ca-add-btn[data-campo="assets_assettypes_id"]');
+    var addModeloBtn  = document.querySelector('.ca-add-btn[data-campo="assets_assetmodels_id"]');
+    function atualizarAddBtns() {
+        var t = tipoHidden.value;
+        if (addTipoBtn)   { addTipoBtn.disabled   = !t; }
+        if (addModeloBtn) { addModeloBtn.disabled = !t || t === 'PlataformadeRecarga'; }
+    }
+    function abrirModalCriar(campo, tipo) {
+        var isTipo = campo === 'assets_assettypes_id';
+        var overlay = document.createElement('div');
+        overlay.id = 'ca-modal-overlay';
+        overlay.innerHTML = '<div id="ca-modal">'
+            + '<h3>' + (isTipo ? 'Cadastrar novo Tipo' : 'Cadastrar novo Modelo') + '</h3>'
+            + '<p class="ca-modal-sub">Tipo de ativo: <strong>' + tipo + '</strong></p>'
+            + '<input type="text" id="ca-modal-nome" placeholder="Nome" maxlength="255">'
+            + '<div id="ca-modal-err" class="ca-modal-err"></div>'
+            + '<div class="ca-modal-actions">'
+            + '<button type="button" class="ca-modal-cancel">Cancelar</button>'
+            + '<button type="button" class="ca-modal-save">Salvar</button>'
+            + '</div></div>';
+        document.body.appendChild(overlay);
+        var input = overlay.querySelector('#ca-modal-nome');
+        var errEl = overlay.querySelector('#ca-modal-err');
+        var saveBtn = overlay.querySelector('.ca-modal-save');
+        function fechar() { overlay.remove(); }
+        overlay.querySelector('.ca-modal-cancel').addEventListener('click', fechar);
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) fechar(); });
+        saveBtn.addEventListener('click', function () {
+            var nome = input.value.trim();
+            if (!nome) { errEl.textContent = 'Informe o nome.'; input.focus(); return; }
+            errEl.textContent = '';
+            saveBtn.disabled = true;
+            fetch(root + '/plugins/cadastroativos/ajax/AddDropdown', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: getAjaxHeaders(),
+                body: new URLSearchParams({ tipo_ativo: tipo, campo: campo, nome: nome })
+            })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('Erro HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(function (resp) {
+                    if (!resp.success) {
+                        errEl.textContent = (resp.errors || ['Nao foi possivel cadastrar.']).join(' ');
+                        saveBtn.disabled = false;
+                        return;
+                    }
+                    fechar();
+                    carregarDropdowns(tipo, isTipo ? resp.id : null, isTipo ? null : resp.id);
+                })
+                .catch(function (e) {
+                    errEl.textContent = e && e.message ? e.message : 'Erro de conexao. Tente novamente.';
+                    saveBtn.disabled = false;
+                });
+        });
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') saveBtn.click();
+            if (e.key === 'Escape') fechar();
+        });
+        setTimeout(function () { input.focus(); }, 50);
+    }
+    if (addTipoBtn) {
+        addTipoBtn.addEventListener('click', function () {
+            if (tipoHidden.value) abrirModalCriar('assets_assettypes_id', tipoHidden.value);
+        });
+    }
+    if (addModeloBtn) {
+        addModeloBtn.addEventListener('click', function () {
+            if (tipoHidden.value && tipoHidden.value !== 'PlataformadeRecarga') {
+                abrirModalCriar('assets_assetmodels_id', tipoHidden.value);
+            }
+        });
+    }
+    atualizarAddBtns();
 
     /* Extras por tipo */
     function atualizarExtras(tipo) {
@@ -112,7 +190,7 @@ function initCadastro() {
     invInput.addEventListener('input', atualizarPreview);
 
     /* Combos dinamicos */
-    function carregarDropdowns(tipo) {
+    function carregarDropdowns(tipo, selTipoId, selModeloId) {
         if (!tipo) {
             tiposSelect.innerHTML   = '<option value="">-- Selecione o tipo --</option>';
             modelosSelect.innerHTML = '<option value="">-- Selecione o tipo --</option>';
@@ -123,8 +201,8 @@ function initCadastro() {
         fetch(ajaxBase + 'GetTypesModels?tipo_ativo=' + encodeURIComponent(tipo), { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                fill(tiposSelect,   d.types,  'Selecione o Tipo');
-                fill(modelosSelect, d.models, 'Selecione o Modelo');
+                fill(tiposSelect,   d.types,  'Selecione o Tipo',   selTipoId);
+                fill(modelosSelect, d.models, 'Selecione o Modelo', selModeloId);
             })
             .catch(function () {
                 tiposSelect.innerHTML   = '<option value="">Erro ao carregar</option>';
@@ -132,10 +210,13 @@ function initCadastro() {
             });
     }
 
-    function fill(el, items, ph) {
+    function fill(el, items, ph, preselect) {
         if (items && items.length) {
             el.innerHTML = '<option value="">-- ' + ph + ' --</option>' +
                 items.map(function (i) { return '<option value="' + i.id + '">' + i.name + '</option>'; }).join('');
+            if (preselect && items.some(function (i) { return i.id == preselect; })) {
+                el.value = String(preselect);
+            }
         } else {
             el.innerHTML = '<option value="">Nenhum registro</option>';
         }
@@ -282,6 +363,9 @@ function initCadastro() {
                         Object.keys(extras).forEach(function (t) { var s = extras[t]; if (s) s.style.display = 'none'; });
                         if (serialField) serialField.style.display = 'none';
                         if (panel) panel.style.display = 'none';
+                        var modeloGroup2 = modelosSelect ? modelosSelect.closest('.ca-group') : null;
+                        if (modeloGroup2) { modeloGroup2.style.display = ''; modelosSelect.required = true; }
+                        atualizarAddBtns();
                         atualizarPreview();
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         if (resp.tipoAtivo) { setTimeout(function () { carregarPainel(resp.tipoAtivo); }, 300); }

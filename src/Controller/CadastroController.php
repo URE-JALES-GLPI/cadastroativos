@@ -247,7 +247,15 @@ final class CadastroController extends AbstractController
                         <!-- Avaliacao Tecnica -->
                         <div class="ca-group ca-col-full">
                             <label class="ca-label"><i class="fas fa-clipboard-check"></i> Avaliacao Tecnica</label>
-                            <input type="text" name="custom_avaliacao_tecnica" id="custom_avaliacao_tecnica" class="ca-input" placeholder="Ex: Bom estado, necessita troca de bateria..." maxlength="255">
+                            <select name="custom_avaliacao_tecnica" id="custom_avaliacao_tecnica" class="ca-select">
+                                <option value="">-- Selecione --</option>
+                                <option value="Bom">Bom</option>
+                                <option value="Desgaste natural">Desgaste natural</option>
+                                <option value="Mau uso">Mau uso</option>
+                                <option value="Dano fisico">Dano físico</option>
+                                <option value="Obsoleto">Obsoleto</option>
+                                <option value="Sem avaliacao">Sem avaliação</option>
+                            </select>
                         </div>
 
                         <!-- Observacoes -->

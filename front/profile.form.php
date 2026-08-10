@@ -30,6 +30,8 @@ if ($profilesId > 0 && isset($_POST['update'])) {
     Session::addMessageAfterRedirect('Permissoes salvas com sucesso!', true, INFO);
 }
 
+global $CFG_GLPI;
+
 Html::redirect(
     $CFG_GLPI['root_doc']
     . '/front/profile.form.php?id=' . $profilesId

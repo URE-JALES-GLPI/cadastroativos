@@ -598,6 +598,21 @@ function initCadastro() {
     invInput.addEventListener('blur', function () { clearTimeout(timer); timer = setTimeout(validarDup, 250); });
 
     /* Envio AJAX */
+    function getGlpiCsrfToken() {
+        var meta = document.querySelector('meta[property="glpi:csrf_token"]');
+        var token = meta ? meta.getAttribute('content') : '';
+        if (!token) {
+            var m = document.cookie.match(/(?:^|;\s*)glpi_csrf_token=([^;]+)/);
+            token = m ? decodeURIComponent(m[1]) : '';
+        }
+        return token;
+    }
+    function getAjaxHeaders() {
+        return {
+            'X-Glpi-Csrf-Token': getGlpiCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+    }
     if (btnCadastrar) {
         btnCadastrar.addEventListener('click', function () {
             var form = document.getElementById('form_cadastro_ativo_ajax');
@@ -606,8 +621,16 @@ function initCadastro() {
             btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
             var data = new FormData(form);
             data.set('tipo_ativo', tipoHidden.value);
-            fetch(root + '/plugins/cadastroativos/ajax/SalvarAtivo', { method: 'POST', credentials: 'same-origin', body: data })
-                .then(function (r) { return r.json(); })
+            fetch(root + '/plugins/cadastroativos/ajax/SalvarAtivo', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: getAjaxHeaders(),
+                body: data
+            })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('Erro HTTP ' + r.status);
+                    return r.json();
+                })
                 .then(function (resp) {
                     if (resp.success) {
                         mostrarSucesso(resp.nome, resp.id, resp.tipoAtivo);
@@ -627,7 +650,7 @@ function initCadastro() {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 })
-                .catch(function () { mostrarErro(['Erro de conexao. Tente novamente.']); })
+                .catch(function (e) { mostrarErro([e && e.message ? e.message : 'Erro de conexao. Tente novamente.']); })
                 .finally(function () {
                     btnCadastrar.disabled = false;
                     btnCadastrar.innerHTML = '<i class="fas fa-save"></i> Cadastrar Ativo';

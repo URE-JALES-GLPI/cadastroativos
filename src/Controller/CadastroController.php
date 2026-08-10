@@ -195,10 +195,10 @@ final class CadastroController extends AbstractController
                         <div class="ca-group ca-col-full">
                             <label class="ca-label"><i class="fas fa-barcode"></i> Numero de Inventario <span class="ca-req">*</span></label>
                             <div class="ca-inv-row">
-                                <input type="number" name="numero_inventario" id="numero_inventario" class="ca-input" placeholder="Ex: 1001" min="1" max="999999" step="1" required>
+                                <input type="number" name="numero_inventario" id="numero_inventario" class="ca-input" placeholder="Ex: 1, 2, 3, 4..." min="1" max="999999" step="1" required>
                                 <div class="ca-badge"><i class="fas fa-tag"></i><span id="ca-badge-txt">#0</span></div>
                             </div>
-                            <span class="ca-hint">Nome gerado automaticamente: <strong id="ca-preview">#0</strong></span>
+                            <span class="ca-hint">Numeração sequencial a partir de 1 (1, 2, 3...). Nome gerado automaticamente: <strong id="ca-preview">#0</strong></span>
                             <div id="ca-dup-container"></div>
                         </div>
 

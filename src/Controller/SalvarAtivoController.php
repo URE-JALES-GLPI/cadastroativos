@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class SalvarAtivoController extends AbstractController
 {
-    #[Route('/ajax/SalvarAtivo', name: 'cadastroativos_salvar', methods: ['POST'])]
+    #[Route('/ajax/SalvarAtivo', name: 'cadastroativos_salvar', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         Session::checkLoginUser();

@@ -634,7 +634,11 @@ function initCadastro() {
                 .then(function (resp) {
                     if (resp.success) {
                         mostrarSucesso(resp.nome, resp.id, resp.tipoAtivo);
-                        form.reset();
+                        form.querySelectorAll('input, textarea').forEach(function (el) {
+                            if (el.type === 'checkbox' || el.type === 'radio') { el.checked = false; }
+                            else { el.value = ''; }
+                        });
+                        form.querySelectorAll('select').forEach(function (el) { el.selectedIndex = 0; });
                         tipoHidden.value = '';
                         grid.querySelectorAll('.ca-type-btn').forEach(function (b) { b.classList.remove('active'); });
                         tiposSelect.innerHTML   = '<option value="">-- Selecione o tipo --</option>';

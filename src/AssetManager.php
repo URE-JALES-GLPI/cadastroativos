@@ -23,12 +23,6 @@ class AssetManager
     public const AV_TYPES    = ['Televisao', 'PlataformadeRecarga'];
     public const BASE_TYPES  = ['Celular', 'Notebook', 'Tablet', 'Desktop'];
 
-    public const AMBIENTE_OPTIONS = [
-        ''               => '-- Selecione --',
-        'Pedagogico'     => 'Pedagógico',
-        'Administrativo' => 'Administrativo',
-    ];
-
     public static function getAvailableTypes(): array
     {
         $available = [];
@@ -66,19 +60,43 @@ class AssetManager
         return '#' . trim($inventoryNumber);
     }
 
+    /**
+     * Verifica unicidade do numero de inventario por entidade E por tipo de ativo.
+     * Usa query direta filtrando por assets_assetdefinitions_id para garantir
+     * que a validacao e isolada por tipo — mesmo numero pode existir em tipos diferentes.
+     */
     public static function inventoryNumberExists(
         string $systemName,
         string $inventoryNumber,
         int $entityId,
         int $ignoreId = 0
     ): bool {
-        $assetClass = self::getAssetClass($systemName);
-        if ($assetClass === null || !class_exists($assetClass)) return false;
+        $definition = self::getDefinition($systemName);
+        if ($definition === null) return false;
 
-        $asset    = new $assetClass();
-        $criteria = ['otherserial' => $inventoryNumber, 'entities_id' => $entityId, 'is_deleted' => 0];
-        if ($ignoreId > 0) $criteria['id'] = ['!=', $ignoreId];
-        return count($asset->find($criteria, [], 1)) > 0;
+        $definitionId = (int) $definition->getID();
+
+        global $DB;
+
+        $where = [
+            'otherserial'                => $inventoryNumber,
+            'entities_id'                => $entityId,
+            'is_deleted'                 => 0,
+            'assets_assetdefinitions_id' => $definitionId,
+        ];
+
+        if ($ignoreId > 0) {
+            $where['id'] = ['!=', $ignoreId];
+        }
+
+        $iterator = $DB->request([
+            'COUNT' => 'id',
+            'FROM'  => 'glpi_assets_assets',
+            'WHERE' => $where,
+        ]);
+
+        $row = $iterator->current();
+        return (int) ($row['COUNT(id)'] ?? $row['id'] ?? 0) > 0;
     }
 
     public static function createAsset(string $systemName, array $input): int

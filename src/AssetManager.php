@@ -15,11 +15,12 @@ class AssetManager
         'Switch'              => 'Switch',
         'Firewall'            => 'Firewall',
         'RackdeRede'          => 'Rack de Rede',
+        'Nobreak'             => 'Nobreak',
         'Televisao'           => 'Televisão',
         'PlataformadeRecarga' => 'Plataforma de Recarga',
     ];
 
-    public const INFRA_TYPES = ['Switch', 'Firewall', 'RackdeRede'];
+    public const INFRA_TYPES = ['Switch', 'Firewall', 'RackdeRede', 'Nobreak'];
     public const AV_TYPES    = ['Televisao', 'PlataformadeRecarga'];
     public const BASE_TYPES  = ['Celular', 'Notebook', 'Tablet', 'Desktop'];
 

@@ -42,6 +42,7 @@ final class CadastroController extends AbstractController
             'Switch'              => ['icon' => 'fa-network-wired','color' => '#64748b', 'group' => 'infra'],
             'Firewall'            => ['icon' => 'fa-shield-alt',   'color' => '#ef4444', 'group' => 'infra'],
             'RackdeRede'          => ['icon' => 'fa-server',       'color' => '#8b5cf6', 'group' => 'infra'],
+            'Nobreak'             => ['icon' => 'fa-bolt',          'color' => '#ca8a04', 'group' => 'infra'],
             'Televisao'           => ['icon' => 'fa-tv',           'color' => '#06b6d4', 'group' => 'av'],
             'PlataformadeRecarga' => ['icon' => 'fa-charging-station', 'color' => '#22c55e', 'group' => 'av'],
         ];

@@ -42,6 +42,7 @@ function initCadastro() {
         Switch:              { icon: 'fa-network-wired',     color: '#64748b' },
         Firewall:            { icon: 'fa-shield-alt',        color: '#ef4444' },
         RackdeRede:          { icon: 'fa-server',            color: '#8b5cf6' },
+        Nobreak:             { icon: 'fa-bolt',              color: '#ca8a04' },
         Televisao:           { icon: 'fa-tv',                color: '#06b6d4' },
         PlataformadeRecarga: { icon: 'fa-charging-station',  color: '#22c55e' }
     };

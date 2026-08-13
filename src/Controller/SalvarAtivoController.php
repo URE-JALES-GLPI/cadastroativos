@@ -82,16 +82,8 @@ final class SalvarAtivoController extends AbstractController
             $nomeFinal = $modelName . ' ' . AssetManager::buildAssetName($numeroInventario);
         }
 
-        // Custom fields
-        $customFields = [];
-        if ($ambiente !== '')         { $customFields['ambiente']          = $ambiente; }
-        if ($memoriaRam !== '')        { $customFields['memoria_ram']       = $memoriaRam; }
-        if ($armazenamento !== '')     { $customFields['armazenamento']     = $armazenamento; }
-        if ($tipoStorage !== '')       { $customFields['tipo_storage']      = $tipoStorage; }
-        if ($imei !== '')              { $customFields['imei']              = $imei; }
-        if ($avaliacaoTecnica !== '')  { $customFields['avaliacao_tecnica'] = $avaliacaoTecnica; }
-        if ($observacao !== '')        { $customFields['observacao']        = $observacao; }
-
+        // Custom fields: o GLPI 11 mapeia campos custom_<system_name> para os IDs
+        // das definicoes e monta o JSON custom_fields sozinho.
         $input = [
             'name'                  => $nomeFinal,
             'otherserial'           => $numeroInventario,
@@ -103,9 +95,13 @@ final class SalvarAtivoController extends AbstractController
             'entities_id'           => $currentEntityId,
             'is_recursive'          => 0,
         ];
-        if (!empty($customFields)) {
-            $input['custom_fields'] = json_encode($customFields);
-        }
+        if ($ambiente !== '')        { $input['custom_ambiente']          = $ambiente; }
+        if ($memoriaRam !== '')      { $input['custom_memoria_ram']       = $memoriaRam; }
+        if ($armazenamento !== '')   { $input['custom_armazenamento']     = $armazenamento; }
+        if ($tipoStorage !== '')     { $input['custom_tipo_storage']      = $tipoStorage; }
+        if ($imei !== '')            { $input['custom_imei']              = $imei; }
+        if ($avaliacaoTecnica !== ''){ $input['custom_avaliacao_tecnica'] = $avaliacaoTecnica; }
+        if ($observacao !== '')      { $input['custom_observacao']        = $observacao; }
 
         try {
             $newId = AssetManager::createAsset($tipoAtivo, $input);

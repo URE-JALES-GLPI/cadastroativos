@@ -9,7 +9,6 @@ class AssetManager
 {
     public const SUPPORTED_TYPES = [
         'Celular'             => 'Celular',
-        'Telefones'           => 'Telefones',
         'Notebook'            => 'Notebook',
         'Tablet'              => 'Tablet',
         'Desktop'             => 'Desktop',

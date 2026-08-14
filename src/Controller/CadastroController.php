@@ -36,7 +36,6 @@ final class CadastroController extends AbstractController
 
         $typeConfig = [
             'Celular'             => ['icon' => 'fa-mobile-alt',  'color' => '#6366f1', 'group' => 'base'],
-            'Telefones'           => ['icon' => 'fa-phone',       'color' => '#0d9488', 'group' => 'base'],
             'Notebook'            => ['icon' => 'fa-laptop',       'color' => '#0ea5e9', 'group' => 'base'],
             'Tablet'              => ['icon' => 'fa-tablet-alt',   'color' => '#10b981', 'group' => 'base'],
             'Desktop'             => ['icon' => 'fa-desktop',      'color' => '#f59e0b', 'group' => 'base'],

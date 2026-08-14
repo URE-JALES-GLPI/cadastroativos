@@ -24,14 +24,36 @@ final class GetTypesModelsController extends AbstractController
             return new JsonResponse(['types' => [], 'models' => []]);
         }
 
+        global $DB;
+
+        if (AssetManager::isLegacyType($systemName)) {
+            $types = [];
+            foreach ($DB->request([
+                'SELECT' => ['id', 'name'],
+                'FROM'   => 'glpi_phonetypes',
+                'ORDER'  => 'name ASC',
+            ]) as $row) {
+                $types[] = ['id' => (int) $row['id'], 'name' => $row['name']];
+            }
+
+            $models = [];
+            foreach ($DB->request([
+                'SELECT' => ['id', 'name'],
+                'FROM'   => 'glpi_phonemodels',
+                'ORDER'  => 'name ASC',
+            ]) as $row) {
+                $models[] = ['id' => (int) $row['id'], 'name' => $row['name']];
+            }
+
+            return new JsonResponse(['types' => $types, 'models' => $models]);
+        }
+
         $definition = AssetManager::getDefinition($systemName);
         if ($definition === null) {
             return new JsonResponse(['types' => [], 'models' => []]);
         }
 
         $definitionId = (int) $definition->getID();
-
-        global $DB;
 
         $types = [];
         foreach ($DB->request([

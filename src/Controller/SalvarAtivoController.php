@@ -77,31 +77,53 @@ final class SalvarAtivoController extends AbstractController
         // Nome: Modelo + #inventario (sem modelo para Plataforma de Recarga)
         if ($tipoAtivo === 'PlataformadeRecarga') {
             $nomeFinal = 'Plataforma de Recarga ' . AssetManager::buildAssetName($numeroInventario);
+        } elseif (AssetManager::isLegacyType($tipoAtivo)) {
+            global $DB;
+            $modelRow  = $DB->request([
+                'SELECT' => ['name'],
+                'FROM'   => 'glpi_phonemodels',
+                'WHERE'  => ['id' => $modelsId],
+            ])->current();
+            $nomeFinal = ($modelRow['name'] ?? '') . ' ' . AssetManager::buildAssetName($numeroInventario);
         } else {
             $modelName = Dropdown::getDropdownName('glpi_assets_assetmodels', $modelsId);
             $nomeFinal = $modelName . ' ' . AssetManager::buildAssetName($numeroInventario);
         }
 
-        // Custom fields: o GLPI 11 mapeia campos custom_<system_name> para os IDs
-        // das definicoes e monta o JSON custom_fields sozinho.
-        $input = [
-            'name'                  => $nomeFinal,
-            'otherserial'           => $numeroInventario,
-            'states_id'             => $statesId,
-            'assets_assetmodels_id' => $modelsId, // 0 para PlataformadeRecarga
-            'manufacturers_id'      => $manufacturersId,
-            'assets_assettypes_id'  => $typesId,
-            'serial'                => $serial,
-            'entities_id'           => $currentEntityId,
-            'is_recursive'          => 0,
-        ];
-        if ($ambiente !== '')        { $input['custom_ambiente']          = $ambiente; }
-        if ($memoriaRam !== '')      { $input['custom_memoria_ram']       = $memoriaRam; }
-        if ($armazenamento !== '')   { $input['custom_armazenamento']     = $armazenamento; }
-        if ($tipoStorage !== '')     { $input['custom_tipo_storage']      = $tipoStorage; }
-        if ($imei !== '')            { $input['custom_imei']              = $imei; }
-        if ($avaliacaoTecnica !== ''){ $input['custom_avaliacao_tecnica'] = $avaliacaoTecnica; }
-        if ($observacao !== '')      { $input['custom_observacao']        = $observacao; }
+        if (AssetManager::isLegacyType($tipoAtivo)) {
+            $input = [
+                'name'             => $nomeFinal,
+                'otherserial'      => $numeroInventario,
+                'states_id'        => $statesId,
+                'phonemodels_id'   => $modelsId,
+                'manufacturers_id' => $manufacturersId,
+                'phonetypes_id'    => $typesId,
+                'serial'           => $serial,
+                'entities_id'      => $currentEntityId,
+                'is_recursive'     => 0,
+            ];
+        } else {
+            // Custom fields: o GLPI 11 mapeia campos custom_<system_name> para os IDs
+            // das definicoes e monta o JSON custom_fields sozinho.
+            $input = [
+                'name'                  => $nomeFinal,
+                'otherserial'           => $numeroInventario,
+                'states_id'             => $statesId,
+                'assets_assetmodels_id' => $modelsId, // 0 para PlataformadeRecarga
+                'manufacturers_id'      => $manufacturersId,
+                'assets_assettypes_id'  => $typesId,
+                'serial'                => $serial,
+                'entities_id'           => $currentEntityId,
+                'is_recursive'          => 0,
+            ];
+            if ($ambiente !== '')        { $input['custom_ambiente']          = $ambiente; }
+            if ($memoriaRam !== '')      { $input['custom_memoria_ram']       = $memoriaRam; }
+            if ($armazenamento !== '')   { $input['custom_armazenamento']     = $armazenamento; }
+            if ($tipoStorage !== '')     { $input['custom_tipo_storage']      = $tipoStorage; }
+            if ($imei !== '')            { $input['custom_imei']              = $imei; }
+            if ($avaliacaoTecnica !== ''){ $input['custom_avaliacao_tecnica'] = $avaliacaoTecnica; }
+            if ($observacao !== '')      { $input['custom_observacao']        = $observacao; }
+        }
 
         try {
             $newId = AssetManager::createAsset($tipoAtivo, $input);

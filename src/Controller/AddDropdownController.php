@@ -36,13 +36,44 @@ final class AddDropdownController extends AbstractController
                 return new JsonResponse(['success' => false, 'errors' => ['Nome muito longo (max. 255 caracteres).']]);
             }
 
+            global $DB;
+
+            if (AssetManager::isLegacyType($systemName)) {
+                $table = $campo === 'assets_assettypes_id' ? 'glpi_phonetypes' : 'glpi_phonemodels';
+                $class = $campo === 'assets_assettypes_id' ? 'PhoneType' : 'PhoneModel';
+
+                $iterator = $DB->request([
+                    'COUNT' => 'id',
+                    'FROM'  => $table,
+                    'WHERE' => ['name' => $nome],
+                ]);
+                $row = $iterator->current();
+                if ((int) ($row['COUNT(id)'] ?? 0) > 0) {
+                    return new JsonResponse(['success' => false, 'errors' => ['Ja existe "' . $nome . '".']]);
+                }
+
+                $newId = 0;
+                if (class_exists($class)) {
+                    $item  = new $class();
+                    $newId = $item->add(['name' => $nome]);
+                } else {
+                    $now               = date('Y-m-d H:i:s');
+                    $inserted          = $DB->insert($table, ['name' => $nome, 'date_creation' => $now, 'date_mod' => $now]);
+                    $newId             = $inserted ? $DB->insertId() : 0;
+                }
+
+                if (!$newId) {
+                    return new JsonResponse(['success' => false, 'errors' => ['Nao foi possivel cadastrar. Verifique o nome informado.']]);
+                }
+
+                return new JsonResponse(['success' => true, 'id' => (int) $newId, 'name' => $nome]);
+            }
+
             $definition   = AssetManager::getDefinition($systemName);
             if ($definition === null) {
                 return new JsonResponse(['success' => false, 'errors' => ['Tipo de ativo nao encontrado.']]);
             }
             $definitionId = (int) $definition->getID();
-
-            global $DB;
 
             $table = $campo === 'assets_assettypes_id' ? 'glpi_assets_assettypes' : 'glpi_assets_assetmodels';
             $iterator = $DB->request([

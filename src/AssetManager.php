@@ -9,6 +9,7 @@ class AssetManager
 {
     public const SUPPORTED_TYPES = [
         'Celular'             => 'Celular',
+        'Telefones'           => 'Telefones',
         'Notebook'            => 'Notebook',
         'Tablet'              => 'Tablet',
         'Desktop'             => 'Desktop',
@@ -22,13 +23,19 @@ class AssetManager
 
     public const INFRA_TYPES = ['Switch', 'Firewall', 'RackdeRede', 'Nobreak'];
     public const AV_TYPES    = ['Televisao', 'PlataformadeRecarga'];
-    public const BASE_TYPES  = ['Celular', 'Notebook', 'Tablet', 'Desktop'];
+    public const BASE_TYPES  = ['Celular', 'Telefones', 'Notebook', 'Tablet', 'Desktop'];
+    public const LEGACY_TYPES = ['Telefones'];
+
+    public static function isLegacyType(string $systemName): bool
+    {
+        return in_array($systemName, self::LEGACY_TYPES, true);
+    }
 
     public static function getAvailableTypes(): array
     {
         $available = [];
         foreach (self::SUPPORTED_TYPES as $systemName => $label) {
-            if (self::getDefinition($systemName) === null) continue;
+            if (!self::isLegacyType($systemName) && self::getDefinition($systemName) === null) continue;
 
             if (in_array($systemName, self::INFRA_TYPES)) {
                 if (!Session::haveRight('plugin_cadastroativos_infra', READ)) continue;
@@ -88,12 +95,30 @@ class AssetManager
         int $entityId,
         int $ignoreId = 0
     ): bool {
+        global $DB;
+
+        if (self::isLegacyType($systemName)) {
+            $where = [
+                'otherserial' => $inventoryNumber,
+                'entities_id' => $entityId,
+                'is_deleted'  => 0,
+            ];
+            if ($ignoreId > 0) {
+                $where['id'] = ['!=', $ignoreId];
+            }
+            $iterator = $DB->request([
+                'COUNT' => 'id',
+                'FROM'  => 'glpi_phones',
+                'WHERE' => $where,
+            ]);
+            $row = $iterator->current();
+            return (int) ($row['COUNT(id)'] ?? $row['id'] ?? 0) > 0;
+        }
+
         $definition = self::getDefinition($systemName);
         if ($definition === null) return false;
 
         $definitionId = (int) $definition->getID();
-
-        global $DB;
 
         $where = [
             'otherserial'                => $inventoryNumber,
@@ -118,6 +143,15 @@ class AssetManager
 
     public static function createAsset(string $systemName, array $input): int
     {
+        if (self::isLegacyType($systemName)) {
+            $phone = new \Phone();
+            $newId = $phone->add($input);
+            if (!$newId) {
+                throw new \RuntimeException('Nao foi possivel criar o telefone. Verifique os dados informados.');
+            }
+            return (int) $newId;
+        }
+
         $assetClass = self::getAssetClass($systemName);
         if ($assetClass === null || !class_exists($assetClass)) {
             throw new \RuntimeException('Tipo de ativo invalido ou nao configurado no GLPI.');

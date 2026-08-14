@@ -36,6 +36,7 @@ function initCadastro() {
 
     var typeIconMap = {
         Celular:             { icon: 'fa-mobile-alt',       color: '#6366f1' },
+        Telefones:           { icon: 'fa-phone',            color: '#0d9488', legacy: true },
         Notebook:            { icon: 'fa-laptop',            color: '#0ea5e9' },
         Tablet:              { icon: 'fa-tablet-alt',        color: '#10b981' },
         Desktop:             { icon: 'fa-desktop',           color: '#f59e0b' },
@@ -253,7 +254,10 @@ function initCadastro() {
         panel.style.display = 'block';
         ajustarAlturaPainel();
         if (panelIcon)  { panelIcon.style.background = c.color; panelIcon.innerHTML = '<i class="fas ' + c.icon + '"></i>'; }
-        if (panelTitle) { panelTitle.textContent = tipo.replace('deRede', ' de Rede').replace('de Recarga', ' de Recarga') + 's cadastrados'; }
+        if (panelTitle) {
+            var nomePainel = tipo.replace('deRede', ' de Rede').replace('de Recarga', ' de Recarga');
+            panelTitle.textContent = (nomePainel.slice(-1) === 's' ? nomePainel : nomePainel + 's') + ' cadastrados';
+        }
         if (panelCount) { panelCount.textContent = 'carregando...'; }
         if (panelList)  { panelList.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i></div>'; }
 
@@ -270,6 +274,9 @@ function initCadastro() {
                     return;
                 }
                 var rows = ativos.map(function (a) {
+                    var url = c.legacy
+                        ? root + '/front/phone.form.php?id=' + a.id
+                        : root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipo) + '&id=' + a.id;
                     return '<div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f8fafc;">'
                         + '<div style="width:32px;height:32px;border-radius:7px;background:' + c.color + '18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
                         + '<span style="font-size:.68rem;font-weight:800;color:' + c.color + ';">' + (a.otherserial || '-') + '</span>'
@@ -278,7 +285,7 @@ function initCadastro() {
                         + '<div style="font-size:.8rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + a.name + '">' + a.name + '</div>'
                         + '<div style="font-size:.7rem;color:#94a3b8;">' + (a.modelo || '') + '</div>'
                         + '</div>'
-                        + '<a href="' + root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipo) + '&id=' + a.id + '" target="_blank" style="color:#cbd5e1;font-size:.72rem;flex-shrink:0;"><i class="fas fa-external-link-alt"></i></a>'
+                        + '<a href="' + url + '" target="_blank" style="color:#cbd5e1;font-size:.72rem;flex-shrink:0;"><i class="fas fa-external-link-alt"></i></a>'
                         + '</div>';
                 }).join('');
                 panelList.innerHTML = rows;
@@ -384,7 +391,10 @@ function initCadastro() {
 
     function mostrarSucesso(nome, id, tipo) {
         if (!msgContainer) return;
-        var url = root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipo) + '&id=' + id;
+        var c = typeIconMap[tipo] || {};
+        var url = c.legacy
+            ? root + '/front/phone.form.php?id=' + id
+            : root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipo) + '&id=' + id;
         msgContainer.innerHTML = '<div class="ca-msg success" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
             + '<div style="display:flex;gap:12px;align-items:center;"><i class="fas fa-check-circle" style="font-size:1.1rem;flex-shrink:0;"></i>'
             + '<div><strong>Ativo cadastrado com sucesso!</strong><br>O ativo <strong>' + nome + '</strong> foi registrado no GLPI.</div></div>'

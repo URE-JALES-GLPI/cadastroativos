@@ -77,34 +77,56 @@ final class SalvarAtivoController extends AbstractController
         // Nome: Modelo + #inventario (sem modelo para Plataforma de Recarga)
         if ($tipoAtivo === 'PlataformadeRecarga') {
             $nomeFinal = 'Plataforma de Recarga ' . AssetManager::buildAssetName($numeroInventario);
+        } elseif (AssetManager::isLegacyType($tipoAtivo)) {
+            global $DB;
+            $modelRow  = $DB->request([
+                'SELECT' => ['name'],
+                'FROM'   => 'glpi_phonemodels',
+                'WHERE'  => ['id' => $modelsId],
+            ])->current();
+            $nomeFinal = ($modelRow['name'] ?? '') . ' ' . AssetManager::buildAssetName($numeroInventario);
         } else {
             $modelName = Dropdown::getDropdownName('glpi_assets_assetmodels', $modelsId);
             $nomeFinal = $modelName . ' ' . AssetManager::buildAssetName($numeroInventario);
         }
 
-        // Custom fields
-        $customFields = [];
-        if ($ambiente !== '')         { $customFields['ambiente']          = $ambiente; }
-        if ($memoriaRam !== '')        { $customFields['memoria_ram']       = $memoriaRam; }
-        if ($armazenamento !== '')     { $customFields['armazenamento']     = $armazenamento; }
-        if ($tipoStorage !== '')       { $customFields['tipo_storage']      = $tipoStorage; }
-        if ($imei !== '')              { $customFields['imei']              = $imei; }
-        if ($avaliacaoTecnica !== '')  { $customFields['avaliacao_tecnica'] = $avaliacaoTecnica; }
-        if ($observacao !== '')        { $customFields['observacao']        = $observacao; }
+        if (AssetManager::isLegacyType($tipoAtivo)) {
+            $input = [
+                'name'             => $nomeFinal,
+                'otherserial'      => $numeroInventario,
+                'states_id'        => $statesId,
+                'phonemodels_id'   => $modelsId,
+                'manufacturers_id' => $manufacturersId,
+                'phonetypes_id'    => $typesId,
+                'serial'           => $serial,
+                'entities_id'      => $currentEntityId,
+                'is_recursive'     => 0,
+            ];
+        } else {
+            // Custom fields
+            $customFields = [];
+            if ($ambiente !== '')         { $customFields['ambiente']          = $ambiente; }
+            if ($memoriaRam !== '')        { $customFields['memoria_ram']       = $memoriaRam; }
+            if ($armazenamento !== '')     { $customFields['armazenamento']     = $armazenamento; }
+            if ($tipoStorage !== '')       { $customFields['tipo_storage']      = $tipoStorage; }
+            if ($imei !== '')              { $customFields['imei']              = $imei; }
+            if ($avaliacaoTecnica !== '')  { $customFields['avaliacao_tecnica'] = $avaliacaoTecnica; }
+            if ($observacao !== '')        { $customFields['observacao']        = $observacao; }
 
-        $input = [
-            'name'                  => $nomeFinal,
-            'otherserial'           => $numeroInventario,
-            'states_id'             => $statesId,
-            'assets_assetmodels_id' => $modelsId, // 0 para PlataformadeRecarga
-            'manufacturers_id'      => $manufacturersId,
-            'assets_assettypes_id'  => $typesId,
-            'serial'                => $serial,
-            'entities_id'           => $currentEntityId,
-            'is_recursive'          => 0,
-        ];
-        if (!empty($customFields)) {
-            $input['custom_fields'] = json_encode($customFields);
+            $input = [
+                'name'                  => $nomeFinal,
+                'otherserial'           => $numeroInventario,
+                'states_id'             => $statesId,
+                'assets_assetmodels_id' => $modelsId, // 0 para PlataformadeRecarga
+                'manufacturers_id'      => $manufacturersId,
+                'assets_assettypes_id'  => $typesId,
+                'serial'                => $serial,
+                'entities_id'           => $currentEntityId,
+                'is_recursive'          => 0,
+            ];
+            if (!empty($customFields)) {
+                $input['custom_fields'] = json_encode($customFields);
+            }
         }
 
         try {

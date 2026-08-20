@@ -151,10 +151,8 @@ final class CadastroController extends AbstractController
         #ca-app #ca-panel-icon { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:.95rem; color:#fff; background:#6366f1; flex-shrink:0; }
         #ca-app #ca-panel-title { font-weight:700; font-size:.82rem; color:#0f172a; }
         #ca-app #ca-panel-count { font-size:.7rem; color:#94a3b8; }
-        #ca-app #ca-panel-tools { display:flex; gap:6px; padding:10px 12px; border-bottom:1px solid #f1f5f9; align-items:center; }
-        #ca-app #ca-panel-search { flex:1; min-width:0; padding:6px 10px; font-size:.76rem; }
-        #ca-app .ca-panel-export { width:30px; height:30px; flex-shrink:0; border-radius:7px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#64748b; display:inline-flex; align-items:center; justify-content:center; font-size:.8rem; text-decoration:none; transition:all .15s; }
-        #ca-app .ca-panel-export:hover { border-color:#16a34a; color:#16a34a; background:#fff; }
+        #ca-app #ca-panel-tools { padding:10px 12px; border-bottom:1px solid #f1f5f9; }
+        #ca-app #ca-panel-search { width:100%; padding:6px 10px; font-size:.76rem; }
         #ca-app #ca-panel-list { overflow-y:auto; padding:4px 0; }
         #ca-app .ca-dropdown-wrap .select2-container,
         #ca-app .ca-dropdown-wrap .chosen-container {
@@ -381,7 +379,6 @@ final class CadastroController extends AbstractController
                     </div>
                     <div id="ca-panel-tools">
                         <input type="search" id="ca-panel-search" class="ca-input ca-panel-search" placeholder="Buscar por nome, numero ou modelo...">
-                        <a id="ca-panel-export" href="#" class="ca-panel-export" title="Exportar CSV"><i class="fas fa-file-csv"></i></a>
                     </div>
                     <div id="ca-panel-list" style="max-height:500px;overflow-y:auto;padding:4px 0;">
                         <div style="padding:20px;text-align:center;color:#94a3b8;font-size:.85rem;">

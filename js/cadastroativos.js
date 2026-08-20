@@ -24,7 +24,6 @@ function initCadastro() {
     var panelCount    = document.getElementById('ca-panel-count');
     var panelIcon     = document.getElementById('ca-panel-icon');
     var panelSearch   = document.getElementById('ca-panel-search');
-    var panelExport   = document.getElementById('ca-panel-export');
     var ativosAtuais  = [];
     var tipoAtualPainel = '';
     var msgContainer  = document.getElementById('ca-msg-container');
@@ -262,9 +261,6 @@ function initCadastro() {
         var c = typeIconMap[tipo] || { icon: 'fa-box', color: '#6b7280' };
         panel.style.display = 'block';
         if (panelSearch) panelSearch.value = '';
-        if (panelExport) {
-            panelExport.href = ajaxBase + 'ExportarAtivos?tipo_ativo=' + encodeURIComponent(tipo);
-        }
         ajustarAlturaPainel();
         if (panelIcon)  { panelIcon.style.background = c.color; panelIcon.innerHTML = '<i class="fas ' + c.icon + '"></i>'; }
         if (panelTitle) {

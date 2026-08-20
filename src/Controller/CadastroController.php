@@ -186,6 +186,7 @@ final class CadastroController extends AbstractController
             <div class="ca-layout">
             <div class="ca-main" id="ca-main">
 
+            <?php if (Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_IMPORT, READ)): ?>
             <div class="ca-card" style="margin-bottom:20px;">
                 <div class="ca-section">
                     <p class="ca-section-title"><i class="fas fa-file-import"></i> Importacao em massa (XLSX)</p>
@@ -203,6 +204,7 @@ final class CadastroController extends AbstractController
                     <div id="ca-import-result"></div>
                 </div>
             </div>
+            <?php endif; ?>
 
             <?php if (empty($availableTypes)): ?>
             <div class="ca-msg" style="background:#fef3c7;border:1px solid #fcd34d;color:#78350f;">

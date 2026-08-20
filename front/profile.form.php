@@ -11,9 +11,10 @@ if ($profilesId > 0 && isset($_POST['update'])) {
     $pr = new ProfileRight();
 
     $rights = [
-        PluginCadastroativosProfile::RIGHT_USE   => (int) ($_POST['rights_use']   ?? 0),
-        PluginCadastroativosProfile::RIGHT_INFRA => (int) ($_POST['rights_infra'] ?? 0),
-        PluginCadastroativosProfile::RIGHT_AV    => (int) ($_POST['rights_av']    ?? 0),
+        PluginCadastroativosProfile::RIGHT_USE    => (int) ($_POST['rights_use']    ?? 0),
+        PluginCadastroativosProfile::RIGHT_INFRA  => (int) ($_POST['rights_infra']  ?? 0),
+        PluginCadastroativosProfile::RIGHT_AV     => (int) ($_POST['rights_av']     ?? 0),
+        PluginCadastroativosProfile::RIGHT_IMPORT => (int) ($_POST['rights_import'] ?? 0),
     ];
 
     foreach ($rights as $rightName => $value) {

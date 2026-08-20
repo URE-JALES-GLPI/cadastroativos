@@ -27,6 +27,10 @@ final class ImportarXlsxController extends AbstractController
             return new JsonResponse(['success' => false, 'errors' => ['Acesso negado.']], 403);
         }
 
+        if (!Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_IMPORT, READ)) {
+            return new JsonResponse(['success' => false, 'errors' => ['Acesso negado.']], 403);
+        }
+
         if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
             return new JsonResponse(['success' => false, 'errors' => ['PhpSpreadsheet nao esta disponivel neste GLPI.']]);
         }

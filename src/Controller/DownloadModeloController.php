@@ -23,6 +23,10 @@ final class DownloadModeloController extends AbstractController
             return new Response('Acesso negado.', 403);
         }
 
+        if (!Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_IMPORT, READ)) {
+            return new Response('Acesso negado.', 403);
+        }
+
         if (!class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
             return new Response('PhpSpreadsheet nao esta disponivel neste GLPI.', 500);
         }

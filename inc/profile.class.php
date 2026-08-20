@@ -8,16 +8,18 @@ class PluginCadastroativosProfile extends CommonDBTM
 {
     public static $rightname = 'profile';
 
-    public const RIGHT_USE   = 'plugin_cadastroativos_use';
-    public const RIGHT_INFRA = 'plugin_cadastroativos_infra';
-    public const RIGHT_AV    = 'plugin_cadastroativos_av';
+    public const RIGHT_USE    = 'plugin_cadastroativos_use';
+    public const RIGHT_INFRA  = 'plugin_cadastroativos_infra';
+    public const RIGHT_AV     = 'plugin_cadastroativos_av';
+    public const RIGHT_IMPORT = 'plugin_cadastroativos_import';
 
     public static function getAllRights(): array
     {
         return [
-            ['field' => self::RIGHT_USE,   'default' => 0],
-            ['field' => self::RIGHT_INFRA, 'default' => 0],
-            ['field' => self::RIGHT_AV,    'default' => 0],
+            ['field' => self::RIGHT_USE,    'default' => 0],
+            ['field' => self::RIGHT_INFRA,  'default' => 0],
+            ['field' => self::RIGHT_AV,     'default' => 0],
+            ['field' => self::RIGHT_IMPORT, 'default' => 0],
         ];
     }
 
@@ -110,6 +112,7 @@ class PluginCadastroativosProfile extends CommonDBTM
         $rUse   = self::getRightValue($pid, self::RIGHT_USE);
         $rInfra = self::getRightValue($pid, self::RIGHT_INFRA);
         $rAV    = self::getRightValue($pid, self::RIGHT_AV);
+        $rImport = self::getRightValue($pid, self::RIGHT_IMPORT);
         $canedit = Session::haveRightsOr(self::$rightname, [CREATE, UPDATE, PURGE]);
 
         echo "<form name='cadastroativos_profile_form' method='post'"
@@ -150,6 +153,18 @@ class PluginCadastroativosProfile extends CommonDBTM
             Dropdown::showFromArray('rights_av', [0 => '— Sem acesso —', READ => 'Permitir acesso'], ['value' => ($rAV & READ) ? READ : 0]);
         } else {
             echo ($rAV & READ) ? 'Permitido' : 'Sem acesso';
+        }
+        echo "</td></tr>";
+
+        // Linha 4: Importacao em massa (XLSX)
+        echo "<tr class='tab_bg_1'><td>"
+            . "<strong>Importacao em massa (XLSX)</strong><br>"
+            . "<small style='color:#6b7280;'>Baixar modelo e cadastrar varios ativos via planilha</small>"
+            . "</td><td>";
+        if ($canedit) {
+            Dropdown::showFromArray('rights_import', [0 => '— Sem acesso —', READ => 'Permitir acesso'], ['value' => ($rImport & READ) ? READ : 0]);
+        } else {
+            echo ($rImport & READ) ? 'Permitido' : 'Sem acesso';
         }
         echo "</td></tr>";
 

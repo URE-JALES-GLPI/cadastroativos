@@ -5,7 +5,7 @@ use GlpiPlugin\Cadastroativos\Menu;
 
 include_once __DIR__ . '/hook.php';
 
-define('PLUGIN_CADASTROATIVOS_VERSION', '1.4.7');
+define('PLUGIN_CADASTROATIVOS_VERSION', '1.5.0');
 define('PLUGIN_CADASTROATIVOS_MIN_GLPI_VERSION', '11.0.0');
 define('PLUGIN_CADASTROATIVOS_MAX_GLPI_VERSION', '11.99.99');
 

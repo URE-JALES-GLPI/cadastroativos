@@ -159,6 +159,17 @@ final class CadastroController extends AbstractController
             width: 100% !important;
             max-width: 100% !important;
         }
+        /* Importacao em massa */
+        #ca-app .ca-import-desc { font-size:.82rem; color:#64748b; margin:0 0 14px; line-height:1.55; }
+        #ca-app .ca-import-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        #ca-app .ca-import-modelo { display:inline-flex; align-items:center; gap:7px; padding:10px 20px; background:#0f172a; color:#fff; border-radius:10px; font-size:.84rem; font-weight:700; text-decoration:none; transition:background .15s; }
+        #ca-app .ca-import-modelo:hover { background:#1e293b; }
+        #ca-app .ca-import-file { display:flex; align-items:center; gap:9px; }
+        #ca-app .ca-import-file input[type="file"] { font-size:.8rem; max-width:240px; }
+        #ca-app .ca-import-file span { font-size:.78rem; color:#94a3b8; }
+        #ca-app .ca-import-result { margin-top:16px; }
+        #ca-app .ca-import-result .ca-msg { margin-bottom:8px; }
+        #ca-app .ca-import-result ul { max-height:220px; overflow-y:auto; }
         </style>
 
         <div id="ca-app">
@@ -174,6 +185,24 @@ final class CadastroController extends AbstractController
 
             <div class="ca-layout">
             <div class="ca-main" id="ca-main">
+
+            <div class="ca-card" style="margin-bottom:20px;">
+                <div class="ca-section">
+                    <p class="ca-section-title"><i class="fas fa-file-import"></i> Importacao em massa (XLSX)</p>
+                    <p class="ca-import-desc">Baixe o <strong>modelo</strong>, preencha uma linha por ativo (conforme as instrucoes na segunda aba da planilha) e envie o arquivo para cadastrar varios equipamentos de uma vez.</p>
+                    <div class="ca-import-row">
+                        <a id="ca-import-modelo" href="#" class="ca-import-modelo"><i class="fas fa-download"></i> Baixar modelo</a>
+                        <div class="ca-import-file">
+                            <input type="file" id="ca-import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                            <span id="ca-import-filename">Nenhum arquivo selecionado</span>
+                        </div>
+                        <button type="button" id="ca-import-btn" class="ca-submit" style="padding:10px 22px;font-size:.84rem;" disabled>
+                            <i class="fas fa-upload"></i> Importar
+                        </button>
+                    </div>
+                    <div id="ca-import-result"></div>
+                </div>
+            </div>
 
             <?php if (empty($availableTypes)): ?>
             <div class="ca-msg" style="background:#fef3c7;border:1px solid #fcd34d;color:#78350f;">

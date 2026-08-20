@@ -456,6 +456,125 @@ function initCadastro() {
     atualizarPreview();
 }
 
+/* Importacao em massa via XLSX */
+function initImportXlsx() {
+    var fileInput = document.getElementById('ca-import-file');
+    if (!fileInput || fileInput._caInited) return;
+    fileInput._caInited = true;
+
+    var cfg      = window.CA_CONFIG || { ajaxBase: '/plugins/cadastroativos/ajax/', root: '' };
+    var fileName = document.getElementById('ca-import-filename');
+    var btn      = document.getElementById('ca-import-btn');
+    var result   = document.getElementById('ca-import-result');
+    var modelo   = document.getElementById('ca-import-modelo');
+
+    if (modelo) {
+        modelo.href = cfg.root + '/plugins/cadastroativos/ModeloXlsx';
+    }
+
+    function getGlpiCsrfToken() {
+        var meta = document.querySelector('meta[property="glpi:csrf_token"]');
+        var token = meta ? meta.getAttribute('content') : '';
+        if (!token) {
+            var m = document.cookie.match(/(?:^|;\s*)glpi_csrf_token=([^;]+)/);
+            token = m ? decodeURIComponent(m[1]) : '';
+        }
+        return token;
+    }
+    function getAjaxHeaders() {
+        return {
+            'X-Glpi-Csrf-Token': getGlpiCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function () {
+            var f = fileInput.files && fileInput.files[0];
+            if (fileName) fileName.textContent = f ? f.name : 'Nenhum arquivo selecionado';
+            if (btn) btn.disabled = !f;
+            if (result) result.innerHTML = '';
+        });
+    }
+
+    if (btn) {
+        btn.addEventListener('click', function () {
+            var f = fileInput.files && fileInput.files[0];
+            if (!f) return;
+            if (!/\.xlsx$/i.test(f.name)) {
+                mostrarImportResult(['Somente arquivos .xlsx sao aceitos.'], null, 0);
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importando...';
+            if (result) {
+                result.innerHTML = '<div class="ca-msg" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;">'
+                    + '<i class="fas fa-spinner fa-spin" style="flex-shrink:0;margin-top:2px;"></i>'
+                    + '<span>Processando arquivo, aguarde...</span></div>';
+            }
+
+            var fd = new FormData();
+            fd.append('arquivo', f);
+
+            fetch(cfg.ajaxBase + 'ImportarXlsx', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: getAjaxHeaders(),
+                body: fd
+            })
+                .then(function (r) {
+                    return r.json().catch(function () { throw new Error('Resposta invalida do servidor.'); });
+                })
+                .then(function (resp) {
+                    if (!resp.success) {
+                        mostrarImportResult(resp.errors || ['Erro ao processar o arquivo.'], null, 0);
+                        return;
+                    }
+                    mostrarImportResult(resp.erros || [], resp.importados, resp.total);
+                })
+                .catch(function (e) {
+                    mostrarImportResult([e && e.message ? e.message : 'Erro de conexao. Tente novamente.'], null, 0);
+                })
+                .finally(function () {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-upload"></i> Importar';
+                    }
+                });
+        });
+    }
+
+    function mostrarImportResult(erros, importados, total) {
+        if (!result) return;
+        var html = '';
+        if (typeof importados === 'number') {
+            var plural = importados !== 1 ? 's' : '';
+            html += '<div class="ca-msg success"><i class="fas fa-check-circle" style="flex-shrink:0;margin-top:2px;"></i>'
+                + '<div><strong>Importacao concluida!</strong><br>' + importados + ' de ' + total + ' ativo' + plural
+                + ' cadastrado' + plural + ' com sucesso.</div></div>';
+        }
+        if (erros && erros.length) {
+            var items = erros.map(function (e) {
+                if (typeof e === 'string') return '<li>' + e + '</li>';
+                return '<li>Linha ' + e.linha + ': ' + e.motivo + '</li>';
+            }).join('');
+            html += '<div class="ca-msg error"><i class="fas fa-exclamation-circle" style="flex-shrink:0;margin-top:2px;"></i>'
+                + '<div><strong>Linhas com erro:</strong><ul>' + items + '</ul></div></div>';
+        }
+        if (!html) {
+            html = '<div class="ca-msg success"><i class="fas fa-check-circle" style="flex-shrink:0;margin-top:2px;"></i>'
+                + '<span>Nenhum registro encontrado no arquivo.</span></div>';
+        }
+        result.innerHTML = html;
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { initImportXlsx(); });
+} else {
+    initImportXlsx();
+}
+
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCadastro);
 } else {

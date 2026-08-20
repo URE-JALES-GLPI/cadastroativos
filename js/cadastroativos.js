@@ -1,4 +1,4 @@
-/* Cadastro de Ativos — JS v1.6 */
+/* Cadastro de Ativos — JS v1.7 */
 function initCadastro() {
     var grid = document.getElementById('ca-types-grid');
     if (!grid || grid._caInited) return;
@@ -23,6 +23,10 @@ function initCadastro() {
     var panelTitle    = document.getElementById('ca-panel-title');
     var panelCount    = document.getElementById('ca-panel-count');
     var panelIcon     = document.getElementById('ca-panel-icon');
+    var panelSearch   = document.getElementById('ca-panel-search');
+    var panelExport   = document.getElementById('ca-panel-export');
+    var ativosAtuais  = [];
+    var tipoAtualPainel = '';
     var msgContainer  = document.getElementById('ca-msg-container');
     var btnCadastrar  = document.getElementById('btn-cadastrar');
     var mainEl        = document.getElementById('ca-main');
@@ -249,9 +253,18 @@ function initCadastro() {
 
     function carregarPainel(tipo) {
         if (!panel) return;
-        if (!tipo) { panel.style.display = 'none'; return; }
+        if (!tipo) {
+            panel.style.display = 'none';
+            if (panelSearch) panelSearch.value = '';
+            return;
+        }
+        tipoAtualPainel = tipo;
         var c = typeIconMap[tipo] || { icon: 'fa-box', color: '#6b7280' };
         panel.style.display = 'block';
+        if (panelSearch) panelSearch.value = '';
+        if (panelExport) {
+            panelExport.href = ajaxBase + 'ExportarAtivos?tipo_ativo=' + encodeURIComponent(tipo);
+        }
         ajustarAlturaPainel();
         if (panelIcon)  { panelIcon.style.background = c.color; panelIcon.innerHTML = '<i class="fas ' + c.icon + '"></i>'; }
         if (panelTitle) {
@@ -264,36 +277,60 @@ function initCadastro() {
         fetch(ajaxBase + 'ListarAtivos?tipo_ativo=' + encodeURIComponent(tipo), { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                var ativos = data.ativos || [];
-                if (panelCount) {
-                    panelCount.textContent = ativos.length + ' cadastrado' + (ativos.length !== 1 ? 's' : '');
-                }
-                if (!panelList) return;
-                if (ativos.length === 0) {
-                    panelList.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.82rem;"><i class="fas fa-inbox" style="font-size:1.6rem;display:block;margin-bottom:6px;opacity:.4;"></i>Nenhum ativo cadastrado.</div>';
-                    return;
-                }
-                var rows = ativos.map(function (a) {
-                    var url = c.legacy
-                        ? root + '/front/phone.form.php?id=' + a.id
-                        : root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipo) + '&id=' + a.id;
-                    return '<div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f8fafc;">'
-                        + '<div style="width:32px;height:32px;border-radius:7px;background:' + c.color + '18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
-                        + '<span style="font-size:.68rem;font-weight:800;color:' + c.color + ';">' + (a.otherserial || '-') + '</span>'
-                        + '</div>'
-                        + '<div style="min-width:0;flex:1;">'
-                        + '<div style="font-size:.8rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + a.name + '">' + a.name + '</div>'
-                        + '<div style="font-size:.7rem;color:#94a3b8;">' + (a.modelo || '') + '</div>'
-                        + '</div>'
-                        + '<a href="' + url + '" target="_blank" style="color:#cbd5e1;font-size:.72rem;flex-shrink:0;"><i class="fas fa-external-link-alt"></i></a>'
-                        + '</div>';
-                }).join('');
-                panelList.innerHTML = rows;
+                ativosAtuais = data.ativos || [];
+                renderPainel();
                 setTimeout(ajustarAlturaPainel, 50);
             })
             .catch(function () {
                 if (panelList) panelList.innerHTML = '<div style="padding:16px;text-align:center;color:#ef4444;font-size:.82rem;">Erro ao carregar.</div>';
             });
+    }
+
+    if (panelSearch) {
+        panelSearch.addEventListener('input', function () {
+            clearTimeout(panelSearch._timer);
+            panelSearch._timer = setTimeout(renderPainel, 150);
+        });
+    }
+
+    function renderPainel() {
+        if (!panelList) return;
+        var termo  = (panelSearch ? panelSearch.value : '').trim().toLowerCase();
+        var total  = ativosAtuais.length;
+        var ativos = termo
+            ? ativosAtuais.filter(function (a) {
+                return (a.name || '').toLowerCase().indexOf(termo) !== -1
+                    || (a.otherserial || '').toLowerCase().indexOf(termo) !== -1
+                    || (a.modelo || '').toLowerCase().indexOf(termo) !== -1;
+            })
+            : ativosAtuais;
+        if (panelCount) {
+            panelCount.textContent = termo
+                ? ativos.length + ' de ' + total
+                : total + ' cadastrado' + (total !== 1 ? 's' : '');
+        }
+        if (ativos.length === 0) {
+            panelList.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.82rem;"><i class="fas fa-inbox" style="font-size:1.6rem;display:block;margin-bottom:6px;opacity:.4;"></i>'
+                + (termo ? 'Nenhum resultado para "' + termo + '".' : 'Nenhum ativo cadastrado.') + '</div>';
+            return;
+        }
+        var c = typeIconMap[tipoAtualPainel] || { icon: 'fa-box', color: '#6b7280' };
+        var rows = ativos.map(function (a) {
+            var url = c.legacy
+                ? root + '/front/phone.form.php?id=' + a.id
+                : root + '/front/asset/asset.form.php?class=' + encodeURIComponent(tipoAtualPainel) + '&id=' + a.id;
+            return '<div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid #f8fafc;">'
+                + '<div style="width:32px;height:32px;border-radius:7px;background:' + c.color + '18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+                + '<span style="font-size:.68rem;font-weight:800;color:' + c.color + ';">' + (a.otherserial || '-') + '</span>'
+                + '</div>'
+                + '<div style="min-width:0;flex:1;">'
+                + '<div style="font-size:.8rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + a.name + '">' + a.name + '</div>'
+                + '<div style="font-size:.7rem;color:#94a3b8;">' + (a.modelo || '') + '</div>'
+                + '</div>'
+                + '<a href="' + url + '" target="_blank" style="color:#cbd5e1;font-size:.72rem;flex-shrink:0;"><i class="fas fa-external-link-alt"></i></a>'
+                + '</div>';
+        }).join('');
+        panelList.innerHTML = rows;
     }
 
     /* Validacao duplicidade */
@@ -302,21 +339,29 @@ function initCadastro() {
         limparDup(); if (!tipo || !num) return;
         fetch(ajaxBase + 'CheckInventory?tipo_ativo=' + encodeURIComponent(tipo) + '&numero_inventario=' + encodeURIComponent(num), { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
-            .then(function (d) { if (d.duplicado) mostrarDup(); })
+            .then(function (d) {
+                if (invInput.value.trim() !== num) return;
+                if (d.duplicado) mostrarDup();
+            })
             .catch(function () {});
     }
     function mostrarDup() {
         limparDup(); invInput.classList.add('ca-error');
+        if (btnCadastrar) btnCadastrar.disabled = true;
         var d = document.createElement('div'); d.id = 'ca-dup-msg'; d.className = 'ca-dup';
         d.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Numero ja utilizado nesta entidade para este tipo.';
         dupContainer.appendChild(d);
     }
     function limparDup() {
         invInput.classList.remove('ca-error');
+        if (btnCadastrar && !btnCadastrar.dataset.saving) btnCadastrar.disabled = false;
         var el = document.getElementById('ca-dup-msg'); if (el) el.remove();
     }
-    var timer;
-    invInput.addEventListener('blur', function () { clearTimeout(timer); timer = setTimeout(validarDup, 250); });
+    var dupTimer;
+    invInput.addEventListener('input', function () {
+        clearTimeout(dupTimer);
+        dupTimer = setTimeout(validarDup, 400);
+    });
 
     /* Envio AJAX */
     function getGlpiCsrfToken() {
@@ -339,6 +384,7 @@ function initCadastro() {
             var form = document.getElementById('form_cadastro_ativo_ajax');
             if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
             btnCadastrar.disabled = true;
+            btnCadastrar.dataset.saving = '1';
             btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
             var data = new FormData(form);
             data.set('tipo_ativo', tipoHidden.value);
@@ -354,6 +400,7 @@ function initCadastro() {
                 })
                 .then(function (resp) {
                     if (resp.success) {
+                        limparDup();
                         mostrarSucesso(resp.nome, resp.id, resp.tipoAtivo);
                         form.querySelectorAll('input, textarea').forEach(function (el) {
                             if (el.type === 'checkbox' || el.type === 'radio') { el.checked = false; }
@@ -383,7 +430,8 @@ function initCadastro() {
                 })
                 .catch(function (e) { mostrarErro([e && e.message ? e.message : 'Erro de conexao. Tente novamente.']); })
                 .finally(function () {
-                    btnCadastrar.disabled = false;
+                    delete btnCadastrar.dataset.saving;
+                    btnCadastrar.disabled = invInput.classList.contains('ca-error');
                     btnCadastrar.innerHTML = '<i class="fas fa-save"></i> Cadastrar Ativo';
                 });
         });

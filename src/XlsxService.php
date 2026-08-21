@@ -433,14 +433,39 @@ class XlsxService
                     $typesId = (int) $row['id'];
                 }
             }
+            // Fallback TV: 'TV' deve usar primeiro Tipo de Televisao quando nao achou 'TV'
+            if ($typesId <= 0 && $tipo !== '' && $tipoAtivo === 'Televisao') {
+                global $DB;
+                $fallback = $DB->request([
+                    'SELECT' => ['id'],
+                    'FROM'   => $typesTable,
+                    'WHERE'  => $extraTypes,
+                    'LIMIT'  => 1,
+                ]);
+                $row = $fallback->current();
+                if ($row) {
+                    $typesId = (int) $row['id'];
+                }
+            }
             if ($tipo === '') {
                 $errors[] = 'Tipo obrigatorio.';
             } elseif ($typesId <= 0) {
                 $errors[] = "Tipo nao encontrado no GLPI para $tipoAtivo: '$tipo'. Cadastre o Tipo em GLPI > Ativos > Tipos (vinculado a $tipoAtivo).";
             }
 
-            if ($tipoAtivo === 'PlataformadeRecarga') {
-                $modelsId = 0;
+            if ($tipoAtivo === 'PlataformadeRecarga' || $tipoAtivo === 'RackdeRede') {
+                // Rack e Plataforma permitem modelo em branco
+                if ($modelo === '') {
+                    $modelsId = 0;
+                } else {
+                    $modelsId = self::findIdByTable($modelTable, $modelo, $extraModels);
+                    if ($modelsId <= 0 && !empty($extraModels)) {
+                        $modelsId = self::findIdByTable($modelTable, $modelo, []);
+                    }
+                    if ($modelsId <= 0) {
+                        $errors[] = "Modelo nao encontrado no GLPI: '$modelo'.";
+                    }
+                }
             } else {
                 $modelsId = self::findIdByTable($modelTable, $modelo, $extraModels);
                 if ($modelsId <= 0 && $modelo !== '' && !empty($extraModels)) {

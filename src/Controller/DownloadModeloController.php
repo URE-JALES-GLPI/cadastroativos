@@ -27,6 +27,25 @@ final class DownloadModeloController extends AbstractController
             return new Response('Acesso negado.', 403);
         }
 
+        // Se existir modelo customizado em /modelo/modelo.xlsx, serve ele (ex: modelo Sueli)
+        $customPaths = [
+            dirname(__DIR__, 2) . '/modelo/modelo.xlsx',
+            dirname(__DIR__, 2) . '/modelo/modelo_sueli.xlsx',
+        ];
+        foreach ($customPaths as $customPath) {
+            if (is_file($customPath) && is_readable($customPath)) {
+                $response = new BinaryFileResponse($customPath, 200, [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Cache-Control' => 'no-store',
+                ]);
+                $response->setContentDisposition(
+                    HeaderUtils::DISPOSITION_ATTACHMENT,
+                    basename($customPath)
+                );
+                return $response;
+            }
+        }
+
         if (!class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
             return new Response('PhpSpreadsheet nao esta disponivel neste GLPI.', 500);
         }

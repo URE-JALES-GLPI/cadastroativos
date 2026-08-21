@@ -384,6 +384,10 @@ class XlsxService
         }
         $modelo     = trim((string) ($data['modelo'] ?? ''));
 
+        // Status: se vazio, usa "Disponível" como padrão (evita travar linhas em branco 251-2247)
+        if ($status === '') {
+            $status = 'Disponível';
+        }
         $statesId = self::findIdByTable('glpi_states', $status);
         if ($status === '') {
             $errors[] = 'Status obrigatorio.';

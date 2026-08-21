@@ -83,6 +83,19 @@ final class ImportarXlsxController extends AbstractController
                 }
             }
 
+            // Atomico: se houver 1 erro, nao sobe nenhum (rollback)
+            if (!empty($erros)) {
+                $DB->rollBack();
+                $flat = array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $erros);
+                return new JsonResponse([
+                    'success'    => false,
+                    'total'      => count($parsed['rows']),
+                    'importados' => 0,
+                    'erros'      => $erros,
+                    'errors'     => $flat,
+                ]);
+            }
+
             $DB->commit();
 
             return new JsonResponse([

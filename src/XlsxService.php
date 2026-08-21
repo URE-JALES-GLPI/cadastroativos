@@ -16,10 +16,10 @@ class XlsxService
 
     public const COLUMNS = [
         ['key' => 'tipo_ativo',        'label' => 'Tipo de Ativo',         'required' => true,  'help' => 'Celular, Telefones, Notebook, Tablet, Desktop, Switch, Firewall, Rack de Rede, Nobreak, Televisão, Plataforma de Recarga'],
-        ['key' => 'numero_inventario', 'label' => 'Numero de Inventario',   'required' => true,  'help' => 'Somente numeros. Ex: 1, 2, 3, 4...'],
+        ['key' => 'numero_inventario', 'label' => 'Numero de Inventario',   'required' => false, 'help' => 'Opcional. Se vazio, sera deixado em branco. Ex: 1, PE06YTF3, 5A5302L6Z'],
         ['key' => 'status',            'label' => 'Status',                'required' => true,  'help' => 'Nome do status exatamente como cadastrado no GLPI (ex: Em uso, Disponivel).'],
-        ['key' => 'fabricante',        'label' => 'Fabricante',            'required' => true,  'help' => 'Nome do fabricante exatamente como cadastrado no GLPI (ex: Dell, Samsung).'],
-        ['key' => 'tipo',              'label' => 'Tipo',                  'required' => true,  'help' => 'Nome do tipo do ativo cadastrado no GLPI (ex: Notebook, Smartphone).'],
+        ['key' => 'fabricante',        'label' => 'Fabricante',            'required' => false, 'help' => 'Opcional. Se vazio, sera deixado em branco. Nome do fabricante exatamente como cadastrado no GLPI (ex: Dell, Samsung).'],
+        ['key' => 'tipo',              'label' => 'Tipo',                  'required' => true,  'help' => 'Nome do tipo do ativo cadastrado no GLPI (ex: Notebook, Smartphone). Se vazio, usa o Tipo de Ativo.'],
         ['key' => 'modelo',            'label' => 'Modelo',                'required' => false, 'help' => 'Nome do modelo. Deixe vazio somente para Plataforma de Recarga.'],
         ['key' => 'serial',            'label' => 'Numero de Serie',       'required' => false, 'help' => 'Numero de serie do equipamento (opcional).'],
         ['key' => 'ambiente',          'label' => 'Ambiente',              'required' => false, 'help' => 'Pedagogico ou Administrativo.'],
@@ -326,9 +326,8 @@ class XlsxService
         if ($numeroInventario === '' && isset($data['id_controle']) && trim((string) $data['id_controle']) !== '') {
             $numeroInventario = trim((string) $data['id_controle']);
         }
-        if ($numeroInventario === '') {
-            $errors[] = 'Numero de Inventario obrigatorio.';
-        } elseif (!preg_match('/^[A-Za-z0-9_-]+$/', $numeroInventario)) {
+        // Agora OPCIONAL: so valida se preenchido
+        if ($numeroInventario !== '' && !preg_match('/^[A-Za-z0-9_-]+$/', $numeroInventario)) {
             $errors[] = "Numero de Inventario invalido: '$numeroInventario'. Use apenas letras, numeros, _ ou - sem espacos.";
         }
 
@@ -348,11 +347,12 @@ class XlsxService
             $errors[] = "Status nao encontrado no GLPI: '$status'.";
         }
 
-        $manufacturersId = self::findIdByTable('glpi_manufacturers', $fabricante);
-        if ($fabricante === '') {
-            $errors[] = 'Fabricante obrigatorio.';
-        } elseif ($manufacturersId <= 0) {
-            $errors[] = "Fabricante nao encontrado no GLPI: '$fabricante'.";
+        $manufacturersId = 0;
+        if ($fabricante !== '') {
+            $manufacturersId = self::findIdByTable('glpi_manufacturers', $fabricante);
+            if ($manufacturersId <= 0) {
+                $errors[] = "Fabricante nao encontrado no GLPI: '$fabricante'.";
+            }
         }
 
         $typesId  = 0;
@@ -389,7 +389,7 @@ class XlsxService
             }
         }
 
-        if (empty($errors)) {
+        if (empty($errors) && $numeroInventario !== '') {
             $entityId = AssetManager::getCurrentEntityId();
             if (AssetManager::inventoryNumberExists($tipoAtivo, $numeroInventario, $entityId)) {
                 $errors[] = "Numero de Inventario '$numeroInventario' ja cadastrado nesta entidade para $tipoAtivo.";
@@ -404,9 +404,14 @@ class XlsxService
         $serial   = trim((string) ($data['serial'] ?? ''));
 
         if ($tipoAtivo === 'PlataformadeRecarga') {
-            $nome = 'Plataforma de Recarga ' . AssetManager::buildAssetName($numeroInventario);
+            $nome = 'Plataforma de Recarga' . ($numeroInventario !== '' ? ' ' . AssetManager::buildAssetName($numeroInventario) : '');
         } else {
-            $nome = $modelo . ' ' . AssetManager::buildAssetName($numeroInventario);
+            $base = $modelo !== '' ? $modelo : ($fabricante !== '' ? $fabricante : ($tipo !== '' ? $tipo : 'Ativo'));
+            $nome = $base . ($numeroInventario !== '' ? ' ' . AssetManager::buildAssetName($numeroInventario) : '');
+            $nome = trim($nome);
+            if ($nome === '') {
+                $nome = 'Ativo ' . ($numeroInventario !== '' ? AssetManager::buildAssetName($numeroInventario) : uniqid());
+            }
         }
 
         if (AssetManager::isLegacyType($tipoAtivo)) {

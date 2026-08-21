@@ -459,6 +459,14 @@ class XlsxService
                     $typesId = (int) $row['id'];
                 }
             }
+            // Fallback geral Sueli: se nao achou tipo e nao é Desktop/Notebook, tenta Estado como padrao
+            if ($typesId <= 0 && $tipoAtivo !== 'Desktop' && $tipoAtivo !== 'Notebook') {
+                $estadoId = self::findIdByTable($typesTable, 'Estado', $extraTypes);
+                if ($estadoId > 0) {
+                    $typesId = $estadoId;
+                    $tipo = 'Estado';
+                }
+            }
             if ($tipo === '') {
                 $errors[] = 'Tipo obrigatorio.';
             } elseif ($typesId <= 0) {

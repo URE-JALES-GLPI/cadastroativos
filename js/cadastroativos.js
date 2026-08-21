@@ -528,14 +528,20 @@ function initImportXlsx() {
                 }
             });
         }
-        // Controles: prévia e duplicados
+        // Controles: prévia e duplicados + permitir branco (injetado apenas se nao existe no PHP)
         var importSection = document.querySelector('.ca-import-row');
         if (importSection && !document.getElementById('ca-import-preview-btn')) {
             var opts = document.createElement('div');
+            opts.id = 'ca-import-opts';
             opts.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:.78rem;color:#475569;';
-            opts.innerHTML = '<button type="button" id="ca-import-preview-btn" style="padding:8px 14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Validar antes</button>'
+            var html = '<button type="button" id="ca-import-preview-btn" style="padding:8px 14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Validar antes</button>'
                 + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ca-import-update" style="accent-color:#f59e0b;"> Atualizar se já existe</label>'
                 + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;">Se duplicado: <select id="ca-import-dup" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="abort">Parar tudo</option><option value="skip">Pular duplicado</option></select></label>';
+            // Se o checkbox de permitir branco nao foi renderizado pelo PHP, injeta via JS como fallback
+            if (!document.getElementById('ca-import-allow-empty')) {
+                html += '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;background:#fffbeb;border:1px solid #fde68a;padding:4px 8px;border-radius:6px;"><input type="checkbox" id="ca-import-allow-empty" style="accent-color:#f59e0b;"> Permitir série em branco</label>';
+            }
+            opts.innerHTML = html;
             importSection.parentNode.insertBefore(opts, importSection.nextSibling);
             var previewBtn = document.getElementById('ca-import-preview-btn');
             if (previewBtn) {
@@ -553,8 +559,10 @@ function initImportXlsx() {
         }
         var dupSel = document.getElementById('ca-import-dup');
         var updChk = document.getElementById('ca-import-update');
+        var allowEmptyChk = document.getElementById('ca-import-allow-empty');
         var onDup = dupSel ? dupSel.value : 'abort';
         var doUpd = updChk && updChk.checked ? '1' : '0';
+        var allowEmpty = allowEmptyChk && allowEmptyChk.checked ? '1' : '0';
         btn.disabled = true;
         var previewBtn = document.getElementById('ca-import-preview-btn');
         if (previewBtn) previewBtn.disabled = true;
@@ -571,6 +579,8 @@ function initImportXlsx() {
         if (isPreview) fd.append('preview', '1');
         fd.append('on_duplicate', onDup);
         fd.append('update_existing', doUpd);
+        fd.append('allow_empty_serial', allowEmpty);
+        fd.append('permitir_branco', allowEmpty);
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', cfg.ajaxBase + 'ImportarXlsx', true);
@@ -584,6 +594,24 @@ function initImportXlsx() {
                 if (bar) bar.style.width = pct + '%';
             }
         };
+        function renderBlanksInfo(info) {
+            if (!info || typeof info !== 'object') return '';
+            var keys = Object.keys(info);
+            if (!keys.length) return '';
+            var rows = keys.map(function (k) {
+                var v = info[k];
+                // suporta formatos: {sheet,db,allowed} ou numerico simples
+                if (v && typeof v === 'object') {
+                    var sheet = v.sheet != null ? v.sheet : '-';
+                    var db = v.db != null ? v.db : '-';
+                    var allowed = v.allowed != null ? v.allowed : (v.sheet != null && v.db != null ? Math.max(0, v.sheet - v.db) : '-');
+                    var skipped = v.skipped != null ? v.skipped : (sheet !== '-' && allowed !== '-' ? (sheet - allowed) : 0);
+                    return '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;">' + k + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + sheet + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + db + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:700;">' + allowed + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + skipped + '</td></tr>';
+                }
+                return '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;">' + k + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;" colspan="4">' + v + '</td></tr>';
+            }).join('');
+            return '<div class="ca-msg" style="background:#fffbeb;border:1px solid #fde68a;color:#78350f;display:block;"><strong>Detalhe série em branco por categoria:</strong><table style="width:100%;margin-top:8px;border-collapse:collapse;font-size:.78rem;"><thead><tr style="background:#fef3c7;"><th style="padding:4px 8px;border:1px solid #e2e8f0;text-align:left;">Categoria</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Na planilha</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Já no GLPI</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Vai cadastrar</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Ignorados</th></tr></thead><tbody>' + rows + '</tbody></table><div style="font-size:.72rem;color:#92400e;margin-top:6px;">Cálculo: vai cadastrar = max(0, na planilha - já no GLPI). Só aplicado quando "Permitir série em branco" está marcado; senão, todos em branco são ignorados.</div></div>';
+        }
         xhr.onload = function () {
             btn.disabled = false;
             if (previewBtn) previewBtn.disabled = false;
@@ -593,23 +621,49 @@ function initImportXlsx() {
             try {
                 var resp = JSON.parse(xhr.responseText);
                 if (!resp.success) {
-                    mostrarImportResult(resp.errors || ['Erro ao processar o arquivo.'], null, 0);
-                    if (resp.erros) mostrarImportResult(resp.erros, resp.importados, resp.total);
+                    mostrarImportResult(resp.errors || ['Erro ao processar o arquivo.'], null, 0, resp.pulados);
+                    if (resp.erros) mostrarImportResult(resp.erros, resp.importados, resp.total, resp.pulados);
+                    // mesmo com erro, mostra detalhe de brancos se houver
+                    if (resp.blanks_info || resp.sheet_blank_per_type) {
+                        var info = resp.blanks_info || resp.sheet_blank_per_type;
+                        var html = renderBlanksInfo(info);
+                        if (html && result) { var d=document.createElement('div'); d.innerHTML=html; result.appendChild(d.firstChild); }
+                    }
                     return;
                 }
                 if (resp.preview) {
                     var msg = resp.erros && resp.erros.length ? 'Prévia: ' + resp.erros.length + ' erro(s) encontrados' : 'Prévia OK: ' + resp.importados + ' pronto(s) pra importar';
-                    mostrarImportResult(resp.erros || [], resp.importados, resp.total);
+                    mostrarImportResult(resp.erros || [], resp.importados, resp.total, resp.pulados);
                     if (result) {
                         var extra = document.createElement('div');
                         extra.className = 'ca-msg ' + (resp.erros && resp.erros.length ? 'error' : 'success');
                         extra.style.marginTop = '8px';
                         extra.innerHTML = '<strong>' + msg + '</strong> — clique em Importar para gravar.';
                         result.appendChild(extra);
+                        if (resp.blanks_info) {
+                            var h = renderBlanksInfo(resp.blanks_info);
+                            if (h) { var tmp=document.createElement('div'); tmp.innerHTML=h; result.appendChild(tmp.firstChild); }
+                        } else if (resp.sheet_blank_per_type) {
+                            var h2 = renderBlanksInfo(resp.sheet_blank_per_type);
+                            if (h2) { var tmp2=document.createElement('div'); tmp2.innerHTML=h2; result.appendChild(tmp2.firstChild); }
+                        }
+                        if (resp.allow_empty === false && resp.blanks_info && Object.keys(resp.blanks_info).length) {
+                            var warn=document.createElement('div');
+                            warn.className='ca-msg';
+                            warn.style.cssText='background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;margin-top:8px;';
+                            warn.innerHTML='⚠️ Série em branco DESMARCADO: linhas com número em branco foram ignoradas. Marque "Permitir cadastro com número de série em branco" para cadastrar a diferença.';
+                            result.appendChild(warn);
+                        }
                     }
                     return;
                 }
-                mostrarImportResult(resp.erros || [], resp.importados, resp.total);
+                mostrarImportResult(resp.erros || [], resp.importados, resp.total, resp.pulados);
+                if (result && resp.blanks_info) {
+                    var hh = renderBlanksInfo(resp.blanks_info);
+                    if (hh) { var t=document.createElement('div'); t.innerHTML=hh; result.appendChild(t.firstChild); }
+                } else if (result && resp.pulados) {
+                    // se nao tem blanks_info mas teve pulados, já mostrado no header, nada extra
+                }
             } catch (e) {
                 mostrarImportResult(['Resposta invalida do servidor.'], null, 0);
             }
@@ -628,14 +682,17 @@ function initImportXlsx() {
         btn.addEventListener('click', function () { doImport(false); });
     }
 
-    function mostrarImportResult(erros, importados, total) {
+    function mostrarImportResult(erros, importados, total, pulados) {
         if (!result) return;
         var html = '';
         if (typeof importados === 'number') {
             var plural = importados !== 1 ? 's' : '';
+            var puladosTxt = (typeof pulados === 'number' && pulados > 0) ? ' (' + pulados + ' pulado' + (pulados!==1?'s':'') + ')' : '';
             html += '<div class="ca-msg success"><i class="fas fa-check-circle" style="flex-shrink:0;margin-top:2px;"></i>'
                 + '<div><strong>Importacao concluida!</strong><br>' + importados + ' de ' + total + ' ativo' + plural
-                + ' cadastrado' + plural + ' com sucesso.</div></div>';
+                + ' cadastrado' + plural + ' com sucesso.' + puladosTxt + '</div></div>';
+        } else if (typeof pulados === 'number' && pulados > 0) {
+            html += '<div class="ca-msg" style="background:#fef3c7;border:1px solid #fcd34d;color:#78350f;"><i class="fas fa-info-circle"></i> ' + pulados + ' linha(s) pulada(s) (duplicadas ou série em branco ignorada).</div>';
         }
         if (erros && erros.length) {
             var items = erros.map(function (e) {

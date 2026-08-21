@@ -60,63 +60,177 @@ final class ImportarXlsxController extends AbstractController
             $isPreview   = $request->request->get('preview') === '1' || $request->request->get('dry_run') === '1';
             $onDuplicate = $request->request->get('on_duplicate', 'abort'); // abort | skip
             $doUpdate    = $request->request->get('update_existing') === '1';
+            // Checkbox: permitir cadastro com numero de inventario/serie em branco
+            $allowEmpty = $request->request->get('allow_empty_serial') === '1'
+                || $request->request->get('allow_empty') === '1'
+                || $request->request->get('permitir_branco') === '1'
+                || $request->request->get('permitir_sem_serie') === '1';
+
+            $entityId = AssetManager::getCurrentEntityId();
 
             if (!$isPreview) {
                 $DB->beginTransaction();
             }
 
-            $importados = 0;
-            $pulados    = 0;
-            $erros      = [];
-            $vistos     = []; // para detectar duplicado dentro do proprio arquivo
+            // === FASE 1: varredura e validacao sem gravar, separando brancos vs nao-brancos ===
+            $vistosFirst = []; // para detectar duplicado dentro do arquivo (raw e built)
+            $errosFirst  = [];
+            $puladosFirst = 0;
+
+            /** @var array<string, array> $validBlanksPerType */
+            $validBlanksPerType = [];
+            /** @var array<int, array> $validNonBlanks */
+            $validNonBlanks = [];
+
             foreach ($parsed['rows'] as $idx => $row) {
                 $line = $idx + 2; // linha 1 = cabecalho
                 $data = XlsxService::mapRow($row, $parsed['headerMap']);
                 if (XlsxService::isEmptyRow($data)) {
                     continue;
                 }
-                // Ignora linhas em branco da Sueli (219+): se CATEGORIA vazia, considera linha vazia
                 $tipoCheck = trim((string) ($data['tipo_ativo'] ?? ''));
                 if ($tipoCheck === '') {
                     continue;
                 }
 
-                // Se duplicado dentro do arquivo, cadastra apenas o primeiro (pula sem erro) — checa ANTES do buildRow pra nao gerar "ja cadastrado"
+                // Checa duplicado dentro do arquivo ANTES do buildRow (raw)
                 $rawNum = trim((string) ($data['numero_inventario'] ?? $data['serial'] ?? ''));
                 $rawTipoNorm = XlsxService::typeSystemName($tipoCheck) ?? $tipoCheck;
-                $dupKeyRaw = $rawTipoNorm . '|' . $rawNum . '|' . AssetManager::getCurrentEntityId();
-                if ($rawNum !== '' && isset($vistos[$dupKeyRaw])) {
+                $dupKeyRaw = $rawTipoNorm . '|' . $rawNum . '|' . $entityId;
+                if ($rawNum !== '' && isset($vistosFirst[$dupKeyRaw])) {
+                    // duplicado dentro do arquivo, pula silenciosamente (nao conta como erro)
                     continue;
                 }
 
                 $built = XlsxService::buildRow($data, $availableTypes);
                 if (!$built['ok']) {
                     $msg = implode(' ', $built['errors']);
-                    // Se for duplicado e modo skip, apenas pula sem erro
                     $isDup = str_contains($msg, 'ja cadastrado');
                     if ($isDup && $onDuplicate === 'skip') {
-                        $pulados++;
+                        $puladosFirst++;
                         continue;
                     }
-                    $erros[] = ['linha' => $line, 'motivo' => $msg];
+                    $errosFirst[] = ['linha' => $line, 'motivo' => $msg];
                     continue;
                 }
 
-                // Se duplicado dentro do arquivo, cadastra apenas o primeiro (pula sem erro)
                 $dupKey = $built['tipo_ativo'] . '|' . ($built['input']['otherserial'] ?? '') . '|' . ($built['input']['entities_id'] ?? 0);
-                if (($built['input']['otherserial'] ?? '') !== '' && isset($vistos[$dupKey])) {
-                    $pulados++;
+                if (($built['input']['otherserial'] ?? '') !== '' && isset($vistosFirst[$dupKey])) {
+                    $puladosFirst++;
                     continue;
                 }
-                $vistos[$dupKey] = $line;
+                // Registra vistos para ambas as chaves
+                if ($rawNum !== '') {
+                    $vistosFirst[$dupKeyRaw] = $line;
+                }
+                $vistosFirst[$dupKey] = $line;
 
-                // Preview: so valida, nao grava
-                if ($isPreview) {
-                    $importados++;
-                    continue;
+                $isBlank = trim((string) ($built['input']['otherserial'] ?? '')) === '';
+                if ($isBlank) {
+                    $tipo = $built['tipo_ativo'];
+                    if (!isset($validBlanksPerType[$tipo])) {
+                        $validBlanksPerType[$tipo] = [];
+                    }
+                    $validBlanksPerType[$tipo][] = ['linha' => $line, 'built' => $built, 'data' => $data];
+                } else {
+                    $validNonBlanks[] = ['linha' => $line, 'built' => $built, 'data' => $data];
+                }
+            }
+
+            // === FASE 2: logica de em branco por categoria ===
+            $dbBlankPerType = [];
+            $allowedPerType = [];
+            $sheetBlankPerType = [];
+            $blanksSkippedNoPerm = 0;
+            $blanksSkippedDiff  = 0;
+            $blanksToImport = [];
+
+            if (empty($validBlanksPerType)) {
+                // nada em branco, sem acao extra
+            } elseif (!$allowEmpty) {
+                // Nao permitido: todos os brancos sao pulados
+                foreach ($validBlanksPerType as $tipo => $list) {
+                    $sheetBlankPerType[$tipo] = count($list);
+                    $allowedPerType[$tipo] = 0;
+                    $blanksSkippedNoPerm += count($list);
+                }
+                $puladosFirst += $blanksSkippedNoPerm;
+                $validBlanksPerType = [];
+            } else {
+                // Permitido: calcula diferenca por categoria (sheet - db)
+                foreach ($validBlanksPerType as $tipo => $list) {
+                    $sheetCount = count($list);
+                    $sheetBlankPerType[$tipo] = $sheetCount;
+                    $dbCount = AssetManager::countBlankInventory($tipo, $entityId);
+                    $dbBlankPerType[$tipo] = $dbCount;
+                    $allowed = $sheetCount - $dbCount;
+                    if ($allowed < 0) {
+                        $allowed = 0;
+                    }
+                    $allowedPerType[$tipo] = $allowed;
+                    // Mantem apenas os primeiros $allowed em ordem de aparecimento
+                    $toImport = array_slice($list, 0, $allowed);
+                    $skipped  = array_slice($list, $allowed);
+                    $blanksToImport = array_merge($blanksToImport, $toImport);
+                    $blanksSkippedDiff += count($skipped);
+                }
+                $puladosFirst += $blanksSkippedDiff;
+                // Para pulados por diferenca, validBlanksPerType agora so contem importaveis; mas vamos usar $blanksToImport flatten
+            }
+
+            // Se nao permitido, blanksToImport fica vazio; se permitido, ja preenchido
+            if ($allowEmpty && !empty($validBlanksPerType) && empty($blanksToImport)) {
+                // caso acima ja preencheu; mas garante que se validBlanks ainda tem dados, mas allowed==0, nada a importar
+            } elseif ($allowEmpty) {
+                // ja calculado
+            } else {
+                $blanksToImport = [];
+            }
+
+            // Total de candidatos a importar (nao-brancos + brancos permitidos)
+            $candidateCount = count($validNonBlanks) + count($blanksToImport);
+
+            // === PREVIEW: apenas retorna contagem ===
+            if ($isPreview) {
+                $importadosPreview = $candidateCount;
+
+                // Monta mensagem auxiliar de brancos
+                $blanksInfo = [];
+                foreach ($sheetBlankPerType as $tipo => $sheetCnt) {
+                    $blanksInfo[$tipo] = [
+                        'sheet'   => $sheetCnt,
+                        'db'      => $dbBlankPerType[$tipo] ?? 0,
+                        'allowed' => $allowedPerType[$tipo] ?? 0,
+                        'skipped' => $sheetCnt - ($allowedPerType[$tipo] ?? 0),
+                    ];
                 }
 
-                // Upsert: se ja existe e flag update_existing, atualiza em vez de criar
+                return new JsonResponse([
+                    'success'    => empty($errosFirst),
+                    'preview'    => true,
+                    'total'      => count($parsed['rows']),
+                    'importados' => $importadosPreview,
+                    'pulados'    => $puladosFirst,
+                    'erros'      => $errosFirst,
+                    'errors'     => array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $errosFirst),
+                    'allow_empty' => $allowEmpty,
+                    'blanks_info' => $blanksInfo,
+                    'sheet_blank_per_type' => $sheetBlankPerType,
+                    'db_blank_per_type'    => $dbBlankPerType,
+                ]);
+            }
+
+            // === FASE 3: importacao real (gravacao) ===
+            $importados = 0;
+            $erros = $errosFirst;
+            $pulados = $puladosFirst;
+
+            // Importa nao-brancos
+            foreach ($validNonBlanks as $entry) {
+                $line  = $entry['linha'];
+                $built = $entry['built'];
+
+                // Upsert
                 if ($doUpdate && ($built['input']['otherserial'] ?? '') !== '') {
                     $existingId = AssetManager::findAssetIdByInventory($built['tipo_ativo'], $built['input']['otherserial'], $built['input']['entities_id']);
                     if ($existingId > 0) {
@@ -139,17 +253,16 @@ final class ImportarXlsxController extends AbstractController
                 }
             }
 
-            // Preview: nao precisa commit, so retorna validacao
-            if ($isPreview) {
-                return new JsonResponse([
-                    'success'    => empty($erros),
-                    'preview'    => true,
-                    'total'      => count($parsed['rows']),
-                    'importados' => $importados, // quantos importariam
-                    'pulados'    => $pulados,
-                    'erros'      => $erros,
-                    'errors'     => array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $erros),
-                ]);
+            // Importa brancos permitidos (diferenca)
+            foreach ($blanksToImport as $entry) {
+                $line  = $entry['linha'];
+                $built = $entry['built'];
+                try {
+                    AssetManager::createAsset($built['tipo_ativo'], $built['input']);
+                    $importados++;
+                } catch (\RuntimeException $e) {
+                    $erros[] = ['linha' => $line, 'motivo' => $e->getMessage()];
+                }
             }
 
             // Atomico: se houver 1 erro e modo abort, nao sobe nenhum (rollback)
@@ -163,9 +276,15 @@ final class ImportarXlsxController extends AbstractController
                     'pulados'    => $pulados,
                     'erros'      => $erros,
                     'errors'     => $flat,
+                    'allow_empty' => $allowEmpty,
+                    'blanks_info' => array_map(fn($t) => [
+                        'sheet' => $sheetBlankPerType[$t] ?? 0,
+                        'db'    => $dbBlankPerType[$t] ?? 0,
+                        'allowed' => $allowedPerType[$t] ?? 0,
+                    ], array_keys($sheetBlankPerType)),
                 ]);
             }
-            // Modo skip: mesmo com erros, commit parcial (pulados ja contados)
+            // Modo skip: mesmo com erros, commit parcial
             if (!empty($erros) && $onDuplicate === 'skip') {
                 $DB->commit();
                 $flat = array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $erros);
@@ -176,10 +295,22 @@ final class ImportarXlsxController extends AbstractController
                     'pulados'    => $pulados,
                     'erros'      => $erros,
                     'errors'     => $flat,
+                    'allow_empty' => $allowEmpty,
+                    'blanks_info' => $sheetBlankPerType, // simplificado
                 ]);
             }
 
             $DB->commit();
+
+            // Monta blanks_info para resposta de sucesso
+            $blanksInfoResp = [];
+            foreach ($sheetBlankPerType as $tipo => $sheetCnt) {
+                $blanksInfoResp[$tipo] = [
+                    'sheet'   => $sheetCnt,
+                    'db'      => $dbBlankPerType[$tipo] ?? 0,
+                    'allowed' => $allowedPerType[$tipo] ?? 0,
+                ];
+            }
 
             return new JsonResponse([
                 'success'    => true,
@@ -187,6 +318,8 @@ final class ImportarXlsxController extends AbstractController
                 'importados' => $importados,
                 'pulados'    => $pulados,
                 'erros'      => $erros,
+                'allow_empty' => $allowEmpty,
+                'blanks_info' => $blanksInfoResp,
             ]);
         } catch (\Throwable $e) {
             if (method_exists($DB, 'inTransaction') && $DB->inTransaction()) {

@@ -230,4 +230,78 @@ class AssetManager
             throw new \RuntimeException('Nao foi possivel atualizar o ativo ID ' . $id . '.');
         }
     }
+
+    /**
+     * Conta quantos ativos existem com numero de inventario/serie em branco
+     * para um tipo e entidade. Considera otherserial vazio (trim == '') — campo usado
+     * na importacao massiva. Para compatibilidade tambem considera serial vazio quando
+     * otherserial ja esta vazio (ou seja, ambos contribuem). Conta apenas is_deleted=0 e is_template=0.
+     */
+    public static function countBlankInventory(string $systemName, int $entityId): int
+    {
+        global $DB;
+
+        if (self::isLegacyType($systemName)) {
+            $iterator = $DB->request([
+                'SELECT' => ['id', 'otherserial', 'serial'],
+                'FROM'   => 'glpi_phones',
+                'WHERE'  => [
+                    'entities_id' => $entityId,
+                    'is_deleted'  => 0,
+                ],
+            ]);
+            $cnt = 0;
+            foreach ($iterator as $row) {
+                $other = trim((string) ($row['otherserial'] ?? ''));
+                // Considera em branco quando otherserial == '' (campo de unicidade da importacao)
+                // Para cobrir casos onde serial tambem esta vazio mas otherserial preenchido (manuais),
+                // a contagem por otherserial ja reflete os em branco da importacao. Se precisar contar
+                // por serial, ajuste aqui para: $other === '' || trim($row['serial'] ?? '') === ''
+                if ($other === '') {
+                    $cnt++;
+                }
+            }
+            return $cnt;
+        }
+
+        $definition = self::getDefinition($systemName);
+        if ($definition === null) {
+            return 0;
+        }
+        $definitionId = (int) $definition->getID();
+        $iterator = $DB->request([
+            'SELECT' => ['id', 'otherserial', 'serial'],
+            'FROM'   => 'glpi_assets_assets',
+            'WHERE'  => [
+                'assets_assetdefinitions_id' => $definitionId,
+                'entities_id'               => $entityId,
+                'is_deleted'                => 0,
+            ],
+        ]);
+        $cnt = 0;
+        foreach ($iterator as $row) {
+            $other = trim((string) ($row['otherserial'] ?? ''));
+            if ($other === '') {
+                $cnt++;
+            }
+        }
+        return $cnt;
+    }
+
+    /**
+     * Conta blanks por entidade para todos os tipos suportados (otimizado: uma query por tipo).
+     * @return array<string,int> mapa systemName => count
+     */
+    public static function countAllBlankInventories(int $entityId): array
+    {
+        $out = [];
+        foreach (self::SUPPORTED_TYPES as $systemName => $label) {
+            if (!self::isLegacyType($systemName) && self::getDefinition($systemName) === null) {
+                $out[$systemName] = 0;
+                continue;
+            }
+            $out[$systemName] = self::countBlankInventory($systemName, $entityId);
+        }
+        return $out;
+    }
 }

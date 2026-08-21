@@ -201,6 +201,13 @@ final class CadastroController extends AbstractController
                             <i class="fas fa-upload"></i> Importar
                         </button>
                     </div>
+                    <div style="margin-top:12px; display:flex; align-items:center; gap:8px; padding:10px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:.84rem; color:#78350f; font-weight:600; margin:0;">
+                            <input type="checkbox" id="ca-import-allow-empty" style="width:16px; height:16px; accent-color:#f59e0b;">
+                            Permitir cadastro com número de série em branco
+                        </label>
+                        <span style="font-size:.76rem; color:#92400e; margin-left:6px;">(se marcado, cadastra só a diferença por categoria: ex. 10 Tablets em branco no GLPI + 13 na planilha = cadastra só 3)</span>
+                    </div>
                     <div id="ca-import-result"></div>
                 </div>
             </div>

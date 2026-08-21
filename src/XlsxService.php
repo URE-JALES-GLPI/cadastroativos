@@ -71,6 +71,30 @@ class XlsxService
                 return $systemName;
             }
         }
+        // Fallback Sueli: categorias como "Notebook Avançado", "Notebook Sala de Aula" devem mapear para "Notebook"
+        foreach (AssetManager::SUPPORTED_TYPES as $systemName => $label) {
+            $normLabel = self::normalize($label);
+            $normSystem = self::normalize($systemName);
+            if ($normLabel !== '' && str_contains($needle, $normLabel)) {
+                return $systemName;
+            }
+            if ($normSystem !== '' && str_contains($needle, $normSystem)) {
+                return $systemName;
+            }
+        }
+        // Caso especial: contem 'notebook' -> Notebook (cobre variações)
+        if (str_contains($needle, 'notebook')) {
+            return 'Notebook';
+        }
+        if (str_contains($needle, 'tablet')) {
+            return 'Tablet';
+        }
+        if (str_contains($needle, 'desktop')) {
+            return 'Desktop';
+        }
+        if (str_contains($needle, 'celular')) {
+            return 'Celular';
+        }
         return null;
     }
 
@@ -117,13 +141,15 @@ class XlsxService
 
     /**
      * Lê a planilha ativa e retorna cabeçalhos, mapa de colunas e linhas.
+     * Suporta multiplas abas com layouts ligeiramente diferentes (ex: planilha Sueli).
      */
     public static function parseRows(string $path): array
     {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
 
-        $headerMap = [];
-        $rows      = [];
+        $globalKeys = [];
+        $rows       = [];
+        $colIndexMap = []; // compatibilidade: indice_coluna -> chave (primeira ocorrencia)
 
         foreach ($spreadsheet->getAllSheets() as $sheet) {
             $highestRow    = $sheet->getHighestDataRow();
@@ -145,35 +171,71 @@ class XlsxService
                 $key  = self::headerMap()[$norm] ?? null;
                 if ($key !== null) {
                     $sheetHeaders[$c] = $key;
+                    $globalKeys[$key] = true;
+                    if (!isset($colIndexMap[$c])) {
+                        $colIndexMap[$c] = $key;
+                    }
                 }
             }
 
-            // Add headers to global map (last sheet wins for duplicates)
-            foreach ($sheetHeaders as $c => $key) {
-                if (!isset($headerMap[$c])) {
-                    $headerMap[$c] = $key;
-                }
+            if (empty($sheetHeaders)) {
+                continue;
             }
 
-            // Read rows from this sheet
+            // Read rows from this sheet - ja mapeia por chave para evitar conflito entre abas
             for ($r = 2; $r <= $highestRow; $r++) {
                 $line = [];
+                $hasData = false;
                 foreach ($sheetHeaders as $c => $key) {
-                    $line[$c] = self::cellString($sheet->getCell([$c, $r])->getValue());
+                    $val = self::cellString($sheet->getCell([$c, $r])->getValue());
+                    if (trim($val) !== '') {
+                        $hasData = true;
+                    }
+                    $line[$key] = $val;
+                    // Mantem tambem indice numerico para compat legada com mapRow
+                    $line[$c] = $val;
                 }
-                $rows[] = $line;
+                if ($hasData) {
+                    $rows[] = $line;
+                }
             }
         }
 
         return [
-            'headers'   => array_values($headerMap),
-            'headerMap' => $headerMap,
+            'headers'   => array_keys($globalKeys),
+            'headerMap' => $colIndexMap,
             'rows'      => $rows,
         ];
     }
 
     public static function mapRow(array $row, array $headerMap): array
     {
+        // Se ja veio mapeado por chave (nova logica multi-aba), retorna direto filtrando chaves validas
+        $hasStringKey = false;
+        foreach ($row as $k => $v) {
+            if (!is_int($k)) {
+                $hasStringKey = true;
+                break;
+            }
+        }
+        if ($hasStringKey) {
+            $out = [];
+            $validKeys = array_flip(array_column(self::COLUMNS, 'key'));
+            // inclui chaves de aliases como serial, categoria etc que sao custom mas validas
+            $validKeys['serial'] = true;
+            $validKeys['categoria_equipamento'] = true;
+            foreach ($row as $k => $v) {
+                if (is_string($k) && isset($validKeys[$k])) {
+                    $out[$k] = $v;
+                } elseif (is_string($k) && in_array($k, ['ambiente','memoria_ram','armazenamento','tipo_storage','imei','avaliacao_tecnica','observacoes','categoria_equipamento'], true)) {
+                    $out[$k] = $v;
+                }
+            }
+            // fallback: se vazio, tenta mapear via indice
+            if (!empty($out)) {
+                return $out;
+            }
+        }
         $out = [];
         foreach ($row as $c => $value) {
             $key = $headerMap[$c] ?? null;
@@ -211,7 +273,33 @@ class XlsxService
             'LIMIT'  => 1,
         ]);
         $row = $iterator->current();
+        if ($row) {
+            return (int) $row['id'];
+        }
 
+        // Fallback: busca normalizada (sem acento, caixa) para tolerar "Disponivel" vs "Disponível"
+        $normNeedle = self::normalize($name);
+        if ($normNeedle === '') {
+            return 0;
+        }
+        $iterator = $DB->request([
+            'SELECT' => ['id', 'name'],
+            'FROM'   => $table,
+            'WHERE'  => $extraWhere,
+        ]);
+        foreach ($iterator as $candidate) {
+            if (self::normalize($candidate['name']) === $normNeedle) {
+                return (int) $candidate['id'];
+            }
+        }
+        // Ultimo fallback: LIKE case-insensitive para Status/Fabricante
+        $iterator = $DB->request([
+            'SELECT' => ['id'],
+            'FROM'   => $table,
+            'WHERE'  => ['name' => ['LIKE', $name]] + $extraWhere,
+            'LIMIT'  => 1,
+        ]);
+        $row = $iterator->current();
         return $row ? (int) $row['id'] : 0;
     }
 
@@ -234,10 +322,14 @@ class XlsxService
         if ($numeroInventario === '' && isset($data['serial']) && trim((string) $data['serial']) !== '') {
             $numeroInventario = trim((string) $data['serial']);
         }
+        // Fallback extra: tenta ID de controle ou qualquer campo serial-like se ainda vazio
+        if ($numeroInventario === '' && isset($data['id_controle']) && trim((string) $data['id_controle']) !== '') {
+            $numeroInventario = trim((string) $data['id_controle']);
+        }
         if ($numeroInventario === '') {
             $errors[] = 'Numero de Inventario obrigatorio.';
-        } elseif (!ctype_digit($numeroInventario)) {
-            $errors[] = "Numero de Inventario deve conter apenas numeros: '$numeroInventario'.";
+        } elseif (!preg_match('/^[A-Za-z0-9_-]+$/', $numeroInventario)) {
+            $errors[] = "Numero de Inventario invalido: '$numeroInventario'. Use apenas letras, numeros, _ ou - sem espacos.";
         }
 
         $status     = trim((string) ($data['status'] ?? ''));

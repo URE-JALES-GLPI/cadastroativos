@@ -52,7 +52,7 @@ final class ImportarXlsxController extends AbstractController
         try {
             $parsed = XlsxService::parseRows($file->getPathname());
 
-            if (empty($parsed['headers']) || empty($parsed['headerMap'])) {
+            if (empty($parsed['headerMap'])) {
                 return new JsonResponse(['success' => false, 'errors' => ['Arquivo sem cabecalho reconhecido. Baixe o modelo e preencha as colunas conforme o exemplo.']]);
             }
 

@@ -86,22 +86,26 @@ class XlsxService
                 $map[self::normalize($col['key'])]   = $col['key'];
             }
             $aliases = [
-                'numero de serie'   => 'serial',
                 'serial'            => 'serial',
+                'numero de serie'   => 'serial',
+                'numerodserie'      => 'serial',
+                'numero de patrimonio' => 'numero_inventario',
+                'numero de inventario' => 'numero_inventario',
                 'memoria'           => 'memoria_ram',
                 'ram'               => 'memoria_ram',
                 'avaliacao'         => 'avaliacao_tecnica',
+                'avaliacao tecnica' => 'avaliacao_tecnica',
                 'obs'               => 'observacoes',
                 'observacao'        => 'observacoes',
+                'observacoes'       => 'observacoes',
                 'tipo de armazenamento' => 'tipo_storage',
                 'tipo do ativo'     => 'tipo_ativo',
-                'numero de patrimonio' => 'numero_inventario',
+                'categoria do equipamento' => 'tipo_ativo',
+                'status do equipamento' => 'status',
+                'statusdoequipamento' => 'status',
                 'ambiente'          => 'ambiente',
                 'fabricante'        => 'fabricante',
                 'modelo'            => 'modelo',
-                'numerodserie'    => 'numero_inventario',
-                'statusdoequipamento' => 'status',
-                'categoria do equipamento' => 'tipo_ativo',
             ];
             foreach ($aliases as $label => $key) {
                 $map[self::normalize($label)] = $key;
@@ -162,7 +166,7 @@ class XlsxService
         }
 
         return [
-            'headers'   => [],
+            'headers'   => array_values($headerMap),
             'headerMap' => $headerMap,
             'rows'      => $rows,
         ];
@@ -226,6 +230,10 @@ class XlsxService
         }
 
         $numeroInventario = trim((string) ($data['numero_inventario'] ?? ''));
+        // Fallback Sueli: NÚMERO DE SÉRIE vem como 'serial' mas deve alimentar 'numero_inventario' quando este estiver vazio
+        if ($numeroInventario === '' && isset($data['serial']) && trim((string) $data['serial']) !== '') {
+            $numeroInventario = trim((string) $data['serial']);
+        }
         if ($numeroInventario === '') {
             $errors[] = 'Numero de Inventario obrigatorio.';
         } elseif (!ctype_digit($numeroInventario)) {
@@ -235,6 +243,10 @@ class XlsxService
         $status     = trim((string) ($data['status'] ?? ''));
         $fabricante = trim((string) ($data['fabricante'] ?? ''));
         $tipo       = trim((string) ($data['tipo'] ?? ''));
+        // Fallback: se a planilha da Sueli usa CATEGORIA DO EQUIPAMENTO como TIPO, replica para campo 'tipo' quando vazio
+        if ($tipo === '' && isset($data['tipo_ativo']) && trim((string) $data['tipo_ativo']) !== '') {
+            $tipo = trim((string) $data['tipo_ativo']);
+        }
         $modelo     = trim((string) ($data['modelo'] ?? ''));
 
         $statesId = self::findIdByTable('glpi_states', $status);

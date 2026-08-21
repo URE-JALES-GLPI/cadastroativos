@@ -96,6 +96,12 @@ class XlsxService
                 'tipo de armazenamento' => 'tipo_storage',
                 'tipo do ativo'     => 'tipo_ativo',
                 'numero de patrimonio' => 'numero_inventario',
+                'ambiente'          => 'ambiente',
+                'fabricante'        => 'fabricante',
+                'modelo'            => 'modelo',
+                'numerodserie'    => 'numero_inventario',
+                'statusdoequipamento' => 'status',
+                'categoriadoequipamento' => 'categoria_equipamento',
             ];
             foreach ($aliases as $label => $key) {
                 $map[self::normalize($label)] = $key;
@@ -318,6 +324,7 @@ class XlsxService
                 'imei'               => $data['imei'] ?? '',
                 'avaliacao_tecnica'  => $data['avaliacao_tecnica'] ?? '',
                 'observacao'         => $data['observacoes'] ?? '',
+                'categoria_equipamento' => $data['categoria_equipamento'] ?? '',
             ];
             foreach ($custom as $key => $value) {
                 $value = trim((string) $value);

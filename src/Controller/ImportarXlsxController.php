@@ -58,7 +58,7 @@ final class ImportarXlsxController extends AbstractController
 
             $availableTypes = AssetManager::getAvailableTypes();
             $isPreview   = $request->request->get('preview') === '1' || $request->request->get('dry_run') === '1';
-            $onDuplicate = $request->request->get('on_duplicate', 'abort'); // abort | skip
+            $onDuplicate = $request->request->get('on_duplicate', 'skip'); // skip | abort (padrao agora skip)
             $doUpdate    = $request->request->get('update_existing') === '1';
             // Checkbox: permitir cadastro com numero de inventario/serie em branco
             $allowEmpty = $request->request->get('allow_empty_serial') === '1'

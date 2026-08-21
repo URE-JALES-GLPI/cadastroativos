@@ -536,7 +536,7 @@ function initImportXlsx() {
             opts.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:.78rem;color:#475569;';
             var html = '<button type="button" id="ca-import-preview-btn" style="padding:8px 14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Validar antes</button>'
                 + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ca-import-update" style="accent-color:#f59e0b;"> Atualizar se já existe</label>'
-                + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;">Se duplicado: <select id="ca-import-dup" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="abort">Parar tudo</option><option value="skip">Pular duplicado</option></select></label>';
+                + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;">Se duplicado: <select id="ca-import-dup" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="skip" selected>Pular duplicado</option><option value="abort">Parar tudo</option></select></label>';
             // Se o checkbox de permitir branco nao foi renderizado pelo PHP, injeta via JS como fallback
             if (!document.getElementById('ca-import-allow-empty')) {
                 html += '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;background:#fffbeb;border:1px solid #fde68a;padding:4px 8px;border-radius:6px;"><input type="checkbox" id="ca-import-allow-empty" style="accent-color:#f59e0b;"> Permitir série em branco</label>';
@@ -560,7 +560,7 @@ function initImportXlsx() {
         var dupSel = document.getElementById('ca-import-dup');
         var updChk = document.getElementById('ca-import-update');
         var allowEmptyChk = document.getElementById('ca-import-allow-empty');
-        var onDup = dupSel ? dupSel.value : 'abort';
+        var onDup = dupSel ? dupSel.value : 'skip';
         var doUpd = updChk && updChk.checked ? '1' : '0';
         var allowEmpty = allowEmptyChk && allowEmptyChk.checked ? '1' : '0';
         btn.disabled = true;

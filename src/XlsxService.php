@@ -382,6 +382,14 @@ class XlsxService
         if ($tipo === '' && isset($data['tipo_ativo']) && trim((string) $data['tipo_ativo']) !== '') {
             $tipo = trim((string) $data['tipo_ativo']);
         }
+        // Regra Sueli: coluna "Tipo" com "Doacao" vira "Estado", exceto Desktop/Notebook que mantem Categoria
+        if (self::normalize($tipo) === 'doacao') {
+            if ($tipoAtivo === 'Desktop' || $tipoAtivo === 'Notebook') {
+                $tipo = trim((string) ($data['tipo_ativo'] ?? $tipoAtivo));
+            } else {
+                $tipo = 'Estado';
+            }
+        }
         $modelo     = trim((string) ($data['modelo'] ?? ''));
 
         // Status: se vazio, usa "Disponível" como padrão (evita travar linhas em branco 251-2247)

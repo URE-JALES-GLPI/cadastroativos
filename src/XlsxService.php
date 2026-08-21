@@ -95,6 +95,25 @@ class XlsxService
         if (str_contains($needle, 'celular')) {
             return 'Celular';
         }
+        // Abas Sueli: Educatron e Televisão -> Televisão
+        if (str_contains($needle, 'educatron') || str_contains($needle, 'televisao') || str_contains($needle, 'tv')) {
+            return 'Televisao';
+        }
+        if (str_contains($needle, 'switch')) {
+            return 'Switch';
+        }
+        if (str_contains($needle, 'firewall')) {
+            return 'Firewall';
+        }
+        if (str_contains($needle, 'rack')) {
+            return 'RackdeRede';
+        }
+        if (str_contains($needle, 'nobreak')) {
+            return 'Nobreak';
+        }
+        if (str_contains($needle, 'plataforma')) {
+            return 'PlataformadeRecarga';
+        }
         return null;
     }
 
@@ -125,10 +144,14 @@ class XlsxService
                 'tipo de armazenamento' => 'tipo_storage',
                 'tipo do ativo'     => 'tipo_ativo',
                 'categoria do equipamento' => 'tipo_ativo',
+                'tipo de equipamento' => 'tipo_ativo',
                 'status do equipamento' => 'status',
                 'statusdoequipamento' => 'status',
                 'ambiente'          => 'ambiente',
                 'fabricante'        => 'fabricante',
+                'marca'             => 'fabricante',
+                'marca fabricante'  => 'fabricante',
+                'tipo modelo'       => 'modelo',
                 'modelo'            => 'modelo',
             ];
             foreach ($aliases as $label => $key) {
@@ -182,6 +205,18 @@ class XlsxService
                 continue;
             }
 
+            // Fallback para abas sem CATEGORIA (ex: Plataforma de Recarga)
+            $sheetTitleNorm = self::normalize((string) $sheet->getTitle());
+            $hasTipoAtivo = in_array('tipo_ativo', $sheetHeaders, true);
+            $defaultTipoAtivo = null;
+            if (!$hasTipoAtivo && str_contains($sheetTitleNorm, 'plataforma')) {
+                $defaultTipoAtivo = 'Plataforma de Recarga';
+                $globalKeys['tipo_ativo'] = true;
+            } elseif (!$hasTipoAtivo && (str_contains($sheetTitleNorm, 'tvs') || str_contains($sheetTitleNorm, 'educatron'))) {
+                // TV Educatron sem categoria explicita? fallback para Televisão, o valor da linha vai sobrescrever se tiver
+                $defaultTipoAtivo = null;
+            }
+
             // Read rows from this sheet - ja mapeia por chave para evitar conflito entre abas
             for ($r = 2; $r <= $highestRow; $r++) {
                 $line = [];
@@ -194,6 +229,11 @@ class XlsxService
                     $line[$key] = $val;
                     // Mantem tambem indice numerico para compat legada com mapRow
                     $line[$c] = $val;
+                }
+                // Injeta tipo_ativo padrao para abas sem coluna CATEGORIA
+                if ($defaultTipoAtivo !== null && empty(trim((string) ($line['tipo_ativo'] ?? '')))) {
+                    $line['tipo_ativo'] = $defaultTipoAtivo;
+                    $hasData = true;
                 }
                 if ($hasData) {
                     $rows[] = $line;

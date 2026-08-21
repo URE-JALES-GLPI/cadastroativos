@@ -382,7 +382,8 @@ class XlsxService
             $tipo = trim((string) $data['tipo_ativo']);
         }
         // Regra Sueli: coluna "Tipo" com "Doacao" vira "Estado", exceto Desktop/Notebook que mantem Categoria
-        if (self::normalize($tipo) === 'doacao') {
+        $normTipo = self::normalize($tipo);
+        if (str_contains($normTipo, 'doacao')) {
             if ($tipoAtivo === 'Desktop' || $tipoAtivo === 'Notebook') {
                 $tipo = trim((string) ($data['tipo_ativo'] ?? $tipoAtivo));
             } else {

@@ -636,6 +636,30 @@ class XlsxService
         $sheet->getStyle('A1:' . $lastCol . '1')->getBorders()->getAllBorders()
             ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('B45309');
 
+        // Listas suspensas para reduzir erro de digitacao
+        $validacoes = [
+            'A' => '"' . implode(',', array_values(AssetManager::SUPPORTED_TYPES)) . '"',
+            'C' => '"Em uso,Disponivel,Garantia,Descartado,Em manutencao"',
+            'H' => '"Pedagogico,Administrativo"',
+            'K' => '"HD,SSD,HD + SSD"',
+            'M' => '"Bom,Desgaste natural,Mau uso,Dano fisico,Obsoleto,Sem avaliacao"',
+        ];
+        foreach ($validacoes as $col => $formula) {
+            for ($r = 2; $r <= 1000; $r++) {
+                $validation = $sheet->getCell($col . $r)->getDataValidation();
+                $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
+                $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+                $validation->setAllowBlank(true);
+                $validation->setShowDropDown(true);
+                $validation->setShowErrorMessage(true);
+                $validation->setErrorTitle('Valor invalido');
+                $validation->setError('Selecione um valor da lista.');
+                $validation->setPromptTitle('Escolha');
+                $validation->setPrompt('Selecione um valor da lista.');
+                $validation->setFormula1($formula);
+            }
+        }
+
         $sheet->setAutoFilter('A1:' . $lastCol . (count($exemplos) + 1));
         $sheet->freezePane('A2');
         $sheet->setSelectedCell('A2');

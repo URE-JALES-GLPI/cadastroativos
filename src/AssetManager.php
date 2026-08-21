@@ -168,4 +168,66 @@ class AssetManager
     {
         return (int) Session::getActiveEntity();
     }
+
+    public static function findAssetIdByInventory(string $systemName, string $inventoryNumber, int $entityId): int
+    {
+        global $DB;
+        $inventoryNumber = trim($inventoryNumber);
+        if ($inventoryNumber === '') {
+            return 0;
+        }
+        if (self::isLegacyType($systemName)) {
+            $iterator = $DB->request([
+                'SELECT' => ['id'],
+                'FROM'   => 'glpi_phones',
+                'WHERE'  => [
+                    'otherserial' => $inventoryNumber,
+                    'entities_id' => $entityId,
+                    'is_deleted'  => 0,
+                ],
+                'LIMIT'  => 1,
+            ]);
+            $row = $iterator->current();
+            return $row ? (int) $row['id'] : 0;
+        }
+        $definition = self::getDefinition($systemName);
+        if ($definition === null) {
+            return 0;
+        }
+        $definitionId = (int) $definition->getID();
+        $iterator = $DB->request([
+            'SELECT' => ['id'],
+            'FROM'   => 'glpi_assets_assets',
+            'WHERE'  => [
+                'otherserial'                => $inventoryNumber,
+                'entities_id'                => $entityId,
+                'is_deleted'                 => 0,
+                'assets_assetdefinitions_id' => $definitionId,
+            ],
+            'LIMIT'  => 1,
+        ]);
+        $row = $iterator->current();
+        return $row ? (int) $row['id'] : 0;
+    }
+
+    public static function updateAsset(string $systemName, int $id, array $input): void
+    {
+        if (self::isLegacyType($systemName)) {
+            $phone = new \Phone();
+            $input['id'] = $id;
+            if (!$phone->update($input)) {
+                throw new \RuntimeException('Nao foi possivel atualizar o telefone ID ' . $id . '.');
+            }
+            return;
+        }
+        $assetClass = self::getAssetClass($systemName);
+        if ($assetClass === null || !class_exists($assetClass)) {
+            throw new \RuntimeException('Tipo de ativo invalido ou nao configurado no GLPI.');
+        }
+        $asset = new $assetClass();
+        $input['id'] = $id;
+        if (!$asset->update($input)) {
+            throw new \RuntimeException('Nao foi possivel atualizar o ativo ID ' . $id . '.');
+        }
+    }
 }

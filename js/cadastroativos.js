@@ -495,51 +495,139 @@ function initImportXlsx() {
             if (btn) btn.disabled = !f;
             if (result) result.innerHTML = '';
         });
+        // Arrasta e solta
+        var importRow = document.querySelector('.ca-import-row');
+        if (importRow) {
+            importRow.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                importRow.style.background = '#eff6ff';
+                importRow.style.border = '2px dashed #bfdbfe';
+                importRow.style.borderRadius = '10px';
+            });
+            importRow.addEventListener('dragleave', function (e) {
+                e.preventDefault();
+                importRow.style.background = '';
+                importRow.style.border = '';
+            });
+            importRow.addEventListener('drop', function (e) {
+                e.preventDefault();
+                importRow.style.background = '';
+                importRow.style.border = '';
+                var f = e.dataTransfer.files && e.dataTransfer.files[0];
+                if (f) {
+                    if (!/\.xlsx$/i.test(f.name)) {
+                        mostrarImportResult(['Arraste apenas arquivos .xlsx'], null, 0);
+                        return;
+                    }
+                    var dt = new DataTransfer();
+                    dt.items.add(f);
+                    fileInput.files = dt.files;
+                    if (fileName) fileName.textContent = f.name;
+                    if (btn) btn.disabled = false;
+                    if (result) result.innerHTML = '<div class="ca-msg" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;"><i class="fas fa-check"></i> Arquivo pronto: ' + f.name + ' — clique em Importar ou Validar</div>';
+                }
+            });
+        }
+        // Controles: prévia e duplicados
+        var importSection = document.querySelector('.ca-import-row');
+        if (importSection && !document.getElementById('ca-import-preview-btn')) {
+            var opts = document.createElement('div');
+            opts.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:.78rem;color:#475569;';
+            opts.innerHTML = '<button type="button" id="ca-import-preview-btn" style="padding:8px 14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Validar antes</button>'
+                + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ca-import-update" style="accent-color:#f59e0b;"> Atualizar se já existe</label>'
+                + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;">Se duplicado: <select id="ca-import-dup" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="abort">Parar tudo</option><option value="skip">Pular duplicado</option></select></label>';
+            importSection.parentNode.insertBefore(opts, importSection.nextSibling);
+            var previewBtn = document.getElementById('ca-import-preview-btn');
+            if (previewBtn) {
+                previewBtn.addEventListener('click', function () { doImport(true); });
+            }
+        }
+    }
+
+    function doImport(isPreview) {
+        var f = fileInput.files && fileInput.files[0];
+        if (!f) return;
+        if (!/\.xlsx$/i.test(f.name)) {
+            mostrarImportResult(['Somente arquivos .xlsx sao aceitos.'], null, 0);
+            return;
+        }
+        var dupSel = document.getElementById('ca-import-dup');
+        var updChk = document.getElementById('ca-import-update');
+        var onDup = dupSel ? dupSel.value : 'abort';
+        var doUpd = updChk && updChk.checked ? '1' : '0';
+        btn.disabled = true;
+        var previewBtn = document.getElementById('ca-import-preview-btn');
+        if (previewBtn) previewBtn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (isPreview ? 'Validando...' : 'Importando...');
+        if (result) {
+            result.innerHTML = '<div class="ca-msg" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;">'
+                + '<i class="fas fa-spinner fa-spin" style="flex-shrink:0;margin-top:2px;"></i>'
+                + '<span>' + (isPreview ? 'Validando arquivo, aguarde...' : 'Processando arquivo, aguarde...') + '</span>'
+                + '<div style="width:100%;height:6px;background:#dbeafe;border-radius:3px;margin-top:8px;overflow:hidden;"><div id="ca-progress-bar" style="height:100%;width:0%;background:#3b82f6;transition:width .2s;"></div></div></div>';
+        }
+
+        var fd = new FormData();
+        fd.append('arquivo', f);
+        if (isPreview) fd.append('preview', '1');
+        fd.append('on_duplicate', onDup);
+        fd.append('update_existing', doUpd);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', cfg.ajaxBase + 'ImportarXlsx', true);
+        xhr.withCredentials = true;
+        var headers = getAjaxHeaders();
+        for (var k in headers) xhr.setRequestHeader(k, headers[k]);
+        xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+                var pct = Math.round((e.loaded / e.total) * 100);
+                var bar = document.getElementById('ca-progress-bar');
+                if (bar) bar.style.width = pct + '%';
+            }
+        };
+        xhr.onload = function () {
+            btn.disabled = false;
+            if (previewBtn) previewBtn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload"></i> Importar';
+            var bar = document.getElementById('ca-progress-bar');
+            if (bar) bar.style.width = '100%';
+            try {
+                var resp = JSON.parse(xhr.responseText);
+                if (!resp.success) {
+                    mostrarImportResult(resp.errors || ['Erro ao processar o arquivo.'], null, 0);
+                    if (resp.erros) mostrarImportResult(resp.erros, resp.importados, resp.total);
+                    return;
+                }
+                if (resp.preview) {
+                    var msg = resp.erros && resp.erros.length ? 'Prévia: ' + resp.erros.length + ' erro(s) encontrados' : 'Prévia OK: ' + resp.importados + ' pronto(s) pra importar';
+                    mostrarImportResult(resp.erros || [], resp.importados, resp.total);
+                    if (result) {
+                        var extra = document.createElement('div');
+                        extra.className = 'ca-msg ' + (resp.erros && resp.erros.length ? 'error' : 'success');
+                        extra.style.marginTop = '8px';
+                        extra.innerHTML = '<strong>' + msg + '</strong> — clique em Importar para gravar.';
+                        result.appendChild(extra);
+                    }
+                    return;
+                }
+                mostrarImportResult(resp.erros || [], resp.importados, resp.total);
+            } catch (e) {
+                mostrarImportResult(['Resposta invalida do servidor.'], null, 0);
+            }
+        };
+        xhr.onerror = function () {
+            btn.disabled = false;
+            if (previewBtn) previewBtn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload"></i> Importar';
+            mostrarImportResult(['Erro de conexao. Tente novamente.'], null, 0);
+        };
+        xhr.send(fd);
+        return;
     }
 
     if (btn) {
-        btn.addEventListener('click', function () {
-            var f = fileInput.files && fileInput.files[0];
-            if (!f) return;
-            if (!/\.xlsx$/i.test(f.name)) {
-                mostrarImportResult(['Somente arquivos .xlsx sao aceitos.'], null, 0);
-                return;
-            }
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importando...';
-            if (result) {
-                result.innerHTML = '<div class="ca-msg" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;">'
-                    + '<i class="fas fa-spinner fa-spin" style="flex-shrink:0;margin-top:2px;"></i>'
-                    + '<span>Processando arquivo, aguarde...</span></div>';
-            }
-
-            var fd = new FormData();
-            fd.append('arquivo', f);
-
-            fetch(cfg.ajaxBase + 'ImportarXlsx', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: getAjaxHeaders(),
-                body: fd
-            })
-                .then(function (r) {
-                    return r.json().catch(function () { throw new Error('Resposta invalida do servidor.'); });
-                })
-                .then(function (resp) {
-                    if (!resp.success) {
-                        mostrarImportResult(resp.errors || ['Erro ao processar o arquivo.'], null, 0);
-                        return;
-                    }
-                    mostrarImportResult(resp.erros || [], resp.importados, resp.total);
-                })
-                .catch(function (e) {
-                    mostrarImportResult([e && e.message ? e.message : 'Erro de conexao. Tente novamente.'], null, 0);
-                })
-                .finally(function () {
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-upload"></i> Importar';
-                    }
+        btn.addEventListener('click', function () { doImport(false); });
+        // fecha o bloco finally pendente do handler antigo removido
+        if (false) {
                 });
         });
     }

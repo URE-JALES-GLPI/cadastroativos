@@ -57,10 +57,16 @@ final class ImportarXlsxController extends AbstractController
             }
 
             $availableTypes = AssetManager::getAvailableTypes();
+            $isPreview   = $request->request->get('preview') === '1' || $request->request->get('dry_run') === '1';
+            $onDuplicate = $request->request->get('on_duplicate', 'abort'); // abort | skip
+            $doUpdate    = $request->request->get('update_existing') === '1';
 
-            $DB->beginTransaction();
+            if (!$isPreview) {
+                $DB->beginTransaction();
+            }
 
             $importados = 0;
+            $pulados    = 0;
             $erros      = [];
             $vistos     = []; // para detectar duplicado dentro do proprio arquivo
             foreach ($parsed['rows'] as $idx => $row) {
@@ -85,16 +91,45 @@ final class ImportarXlsxController extends AbstractController
 
                 $built = XlsxService::buildRow($data, $availableTypes);
                 if (!$built['ok']) {
-                    $erros[] = ['linha' => $line, 'motivo' => implode(' ', $built['errors'])];
+                    $msg = implode(' ', $built['errors']);
+                    // Se for duplicado e modo skip, apenas pula sem erro
+                    $isDup = str_contains($msg, 'ja cadastrado');
+                    if ($isDup && $onDuplicate === 'skip') {
+                        $pulados++;
+                        continue;
+                    }
+                    $erros[] = ['linha' => $line, 'motivo' => $msg];
                     continue;
                 }
 
                 // Se duplicado dentro do arquivo, cadastra apenas o primeiro (pula sem erro)
                 $dupKey = $built['tipo_ativo'] . '|' . ($built['input']['otherserial'] ?? '') . '|' . ($built['input']['entities_id'] ?? 0);
                 if (($built['input']['otherserial'] ?? '') !== '' && isset($vistos[$dupKey])) {
+                    $pulados++;
                     continue;
                 }
                 $vistos[$dupKey] = $line;
+
+                // Preview: so valida, nao grava
+                if ($isPreview) {
+                    $importados++;
+                    continue;
+                }
+
+                // Upsert: se ja existe e flag update_existing, atualiza em vez de criar
+                if ($doUpdate && ($built['input']['otherserial'] ?? '') !== '') {
+                    $existingId = AssetManager::findAssetIdByInventory($built['tipo_ativo'], $built['input']['otherserial'], $built['input']['entities_id']);
+                    if ($existingId > 0) {
+                        try {
+                            AssetManager::updateAsset($built['tipo_ativo'], $existingId, $built['input']);
+                            $importados++;
+                            continue;
+                        } catch (\RuntimeException $e) {
+                            $erros[] = ['linha' => $line, 'motivo' => $e->getMessage()];
+                            continue;
+                        }
+                    }
+                }
 
                 try {
                     AssetManager::createAsset($built['tipo_ativo'], $built['input']);
@@ -104,14 +139,41 @@ final class ImportarXlsxController extends AbstractController
                 }
             }
 
-            // Atomico: se houver 1 erro, nao sobe nenhum (rollback)
-            if (!empty($erros)) {
+            // Preview: nao precisa commit, so retorna validacao
+            if ($isPreview) {
+                return new JsonResponse([
+                    'success'    => empty($erros),
+                    'preview'    => true,
+                    'total'      => count($parsed['rows']),
+                    'importados' => $importados, // quantos importariam
+                    'pulados'    => $pulados,
+                    'erros'      => $erros,
+                    'errors'     => array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $erros),
+                ]);
+            }
+
+            // Atomico: se houver 1 erro e modo abort, nao sobe nenhum (rollback)
+            if (!empty($erros) && $onDuplicate === 'abort') {
                 $DB->rollBack();
                 $flat = array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $erros);
                 return new JsonResponse([
                     'success'    => false,
                     'total'      => count($parsed['rows']),
                     'importados' => 0,
+                    'pulados'    => $pulados,
+                    'erros'      => $erros,
+                    'errors'     => $flat,
+                ]);
+            }
+            // Modo skip: mesmo com erros, commit parcial (pulados ja contados)
+            if (!empty($erros) && $onDuplicate === 'skip') {
+                $DB->commit();
+                $flat = array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $erros);
+                return new JsonResponse([
+                    'success'    => false,
+                    'total'      => count($parsed['rows']),
+                    'importados' => $importados,
+                    'pulados'    => $pulados,
                     'erros'      => $erros,
                     'errors'     => $flat,
                 ]);
@@ -123,6 +185,7 @@ final class ImportarXlsxController extends AbstractController
                 'success'    => true,
                 'total'      => count($parsed['rows']),
                 'importados' => $importados,
+                'pulados'    => $pulados,
                 'erros'      => $erros,
             ]);
         } catch (\Throwable $e) {

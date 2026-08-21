@@ -101,7 +101,6 @@ class XlsxService
                 'modelo'            => 'modelo',
                 'numerodserie'    => 'numero_inventario',
                 'statusdoequipamento' => 'status',
-                'categoriadoequipamento' => 'categoria_equipamento',
                 'categoria do equipamento' => 'tipo_ativo',
             ];
             foreach ($aliases as $label => $key) {

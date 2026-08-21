@@ -379,6 +379,20 @@ class XlsxService
             if ($typesId <= 0 && $tipo !== '' && !empty($extraTypes)) {
                 $typesId = self::findIdByTable($typesTable, $tipo, []);
             }
+            // Fallback Sueli: se CATEGORIA/TIPO_ATIVO == TIPO e ainda nao achou, usa primeiro Tipo disponivel da definicao
+            if ($typesId <= 0 && $tipo !== '' && $tipoAtivo !== null && self::normalize($tipo) === self::normalize($tipoAtivo)) {
+                global $DB;
+                $fallback = $DB->request([
+                    'SELECT' => ['id'],
+                    'FROM'   => $typesTable,
+                    'WHERE'  => $extraTypes,
+                    'LIMIT'  => 1,
+                ]);
+                $row = $fallback->current();
+                if ($row) {
+                    $typesId = (int) $row['id'];
+                }
+            }
             if ($tipo === '') {
                 $errors[] = 'Tipo obrigatorio.';
             } elseif ($typesId <= 0) {

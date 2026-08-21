@@ -117,38 +117,48 @@ class XlsxService
     public static function parseRows(string $path): array
     {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
-        $sheet       = $spreadsheet->getActiveSheet();
 
-        $highestRow    = $sheet->getHighestDataRow();
-        $highestColumn = $sheet->getHighestDataColumn();
-        $colCount      = Coordinate::columnIndexFromString($highestColumn);
-
-        $headers   = [];
         $headerMap = [];
-        for ($c = 1; $c <= $colCount; $c++) {
-            $label = trim(self::cellString($sheet->getCell([$c, 1])->getValue()));
-            $headers[$c] = $label;
-            if ($label === '') {
-                continue;
-            }
-            $norm = self::normalize($label);
-            $key  = self::headerMap()[$norm] ?? null;
-            if ($key !== null) {
-                $headerMap[$c] = $key;
-            }
-        }
+        $rows      = [];
 
-        $rows = [];
-        for ($r = 2; $r <= $highestRow; $r++) {
-            $line = [];
-            foreach ($headers as $c => $label) {
-                $line[$c] = self::cellString($sheet->getCell([$c, $r])->getValue());
+        foreach ($spreadsheet->getAllSheets() as $sheet) {
+            $highestRow    = $sheet->getHighestDataRow();
+            $highestColumn = $sheet->getHighestDataColumn();
+            $colCount      = Coordinate::columnIndexFromString($highestColumn);
+
+            // Collect headers from this sheet
+            $sheetHeaders = [];
+            for ($c = 1; $c <= $colCount; $c++) {
+                $label = trim(self::cellString($sheet->getCell([$c, 1])->getValue()));
+                if ($label === '') {
+                    continue;
+                }
+                $norm = self::normalize($label);
+                $key  = self::headerMap()[$norm] ?? null;
+                if ($key !== null) {
+                    $sheetHeaders[$c] = $key;
+                }
             }
-            $rows[] = $line;
+
+            // Add headers to global map (last sheet wins for duplicates)
+            foreach ($sheetHeaders as $c => $key) {
+                if (!isset($headerMap[$c])) {
+                    $headerMap[$c] = $key;
+                }
+            }
+
+            // Read rows from this sheet
+            for ($r = 2; $r <= $highestRow; $r++) {
+                $line = [];
+                foreach ($sheetHeaders as $c => $key) {
+                    $line[$c] = self::cellString($sheet->getCell([$c, $r])->getValue());
+                }
+                $rows[] = $line;
+            }
         }
 
         return [
-            'headers'   => $headers,
+            'headers'   => [],
             'headerMap' => $headerMap,
             'rows'      => $rows,
         ];
@@ -223,7 +233,7 @@ class XlsxService
         $tipo       = trim((string) ($data['tipo'] ?? ''));
         $modelo     = trim((string) ($data['modelo'] ?? ''));
 
-        $statesId = self::findIdByTable('glpi_states', $status, ['is_active' => 1]);
+        $statesId = self::findIdByTable('glpi_states', $status);
         if ($status === '') {
             $errors[] = 'Status obrigatorio.';
         } elseif ($statesId <= 0) {

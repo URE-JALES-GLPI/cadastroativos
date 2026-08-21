@@ -62,17 +62,16 @@ final class ImportarXlsxController extends AbstractController
 
             $importados = 0;
             $erros      = [];
+            $vistos     = []; // para detectar duplicado dentro do proprio arquivo
             foreach ($parsed['rows'] as $idx => $row) {
                 $line = $idx + 2; // linha 1 = cabecalho
                 $data = XlsxService::mapRow($row, $parsed['headerMap']);
                 if (XlsxService::isEmptyRow($data)) {
                     continue;
                 }
-                // Ignora linhas totalmente em branco da Sueli (a partir da 219)
+                // Ignora linhas em branco da Sueli (219+): se CATEGORIA vazia, considera linha vazia
                 $tipoCheck = trim((string) ($data['tipo_ativo'] ?? ''));
-                $numCheck = trim((string) ($data['numero_inventario'] ?? $data['serial'] ?? ''));
-                $statusCheck = trim((string) ($data['status'] ?? ''));
-                if ($tipoCheck === '' && $numCheck === '' && $statusCheck === '') {
+                if ($tipoCheck === '') {
                     continue;
                 }
 
@@ -81,6 +80,14 @@ final class ImportarXlsxController extends AbstractController
                     $erros[] = ['linha' => $line, 'motivo' => implode(' ', $built['errors'])];
                     continue;
                 }
+
+                // Detecta duplicado dentro do proprio arquivo (mesmo tipo + numero)
+                $dupKey = $built['tipo_ativo'] . '|' . ($built['input']['otherserial'] ?? '') . '|' . ($built['input']['entities_id'] ?? 0);
+                if (($built['input']['otherserial'] ?? '') !== '' && isset($vistos[$dupKey])) {
+                    $erros[] = ['linha' => $line, 'motivo' => "Numero de Inventario '" . $built['input']['otherserial'] . "' duplicado no arquivo para $built[tipo_ativo] (linha " . $vistos[$dupKey] . " ja usou)."];
+                    continue;
+                }
+                $vistos[$dupKey] = $line;
 
                 try {
                     AssetManager::createAsset($built['tipo_ativo'], $built['input']);

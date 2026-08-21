@@ -133,6 +133,10 @@ class XlsxService
                 if ($label === '') {
                     continue;
                 }
+                // Strip ' > ...' annotation pattern before normalizing
+                if (preg_match('/^[^>]*>/', $label, $match)) {
+                    $label = trim(substr($label, 0, strpos($label, '>')));
+                }
                 $norm = self::normalize($label);
                 $key  = self::headerMap()[$norm] ?? null;
                 if ($key !== null) {

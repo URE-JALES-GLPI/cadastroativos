@@ -75,6 +75,14 @@ final class ImportarXlsxController extends AbstractController
                     continue;
                 }
 
+                // Se duplicado dentro do arquivo, cadastra apenas o primeiro (pula sem erro) — checa ANTES do buildRow pra nao gerar "ja cadastrado"
+                $rawNum = trim((string) ($data['numero_inventario'] ?? $data['serial'] ?? ''));
+                $rawTipoNorm = XlsxService::typeSystemName($tipoCheck) ?? $tipoCheck;
+                $dupKeyRaw = $rawTipoNorm . '|' . $rawNum . '|' . AssetManager::getCurrentEntityId();
+                if ($rawNum !== '' && isset($vistos[$dupKeyRaw])) {
+                    continue;
+                }
+
                 $built = XlsxService::buildRow($data, $availableTypes);
                 if (!$built['ok']) {
                     $erros[] = ['linha' => $line, 'motivo' => implode(' ', $built['errors'])];

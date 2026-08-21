@@ -365,9 +365,10 @@ class XlsxService
         if ($numeroInventario === '' && isset($data['id_controle']) && trim((string) $data['id_controle']) !== '') {
             $numeroInventario = trim((string) $data['id_controle']);
         }
-        // Agora OPCIONAL: so valida se preenchido
-        if ($numeroInventario !== '' && !preg_match('/^[A-Za-z0-9_-]+$/', $numeroInventario)) {
-            $errors[] = "Numero de Inventario invalido: '$numeroInventario'. Use apenas letras, numeros, _ ou - sem espacos.";
+        // Agora OPCIONAL: so valida se preenchido — aceita todos os caracteres (ex: 43124/62VR22495)
+        // Antes restrito a /^[A-Za-z0-9_-]+$/, agora permite barra, ponto, etc. Apenas limita tamanho.
+        if ($numeroInventario !== '' && mb_strlen($numeroInventario) > 255) {
+            $errors[] = "Numero de Inventario muito longo (max 255 caracteres).";
         }
 
         $status     = trim((string) ($data['status'] ?? ''));

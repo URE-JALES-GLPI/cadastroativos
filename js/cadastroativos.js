@@ -626,10 +626,6 @@ function initImportXlsx() {
 
     if (btn) {
         btn.addEventListener('click', function () { doImport(false); });
-        // fecha o bloco finally pendente do handler antigo removido
-        if (false) {
-                });
-        });
     }
 
     function mostrarImportResult(erros, importados, total) {

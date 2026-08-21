@@ -81,10 +81,9 @@ final class ImportarXlsxController extends AbstractController
                     continue;
                 }
 
-                // Detecta duplicado dentro do proprio arquivo (mesmo tipo + numero)
+                // Se duplicado dentro do arquivo, cadastra apenas o primeiro (pula sem erro)
                 $dupKey = $built['tipo_ativo'] . '|' . ($built['input']['otherserial'] ?? '') . '|' . ($built['input']['entities_id'] ?? 0);
                 if (($built['input']['otherserial'] ?? '') !== '' && isset($vistos[$dupKey])) {
-                    $erros[] = ['linha' => $line, 'motivo' => "Numero de Inventario '" . $built['input']['otherserial'] . "' duplicado no arquivo para $built[tipo_ativo] (linha " . $vistos[$dupKey] . " ja usou)."];
                     continue;
                 }
                 $vistos[$dupKey] = $line;

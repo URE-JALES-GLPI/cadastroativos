@@ -431,6 +431,14 @@ class XlsxService
             if ($typesId <= 0 && $tipo !== '' && !empty($extraTypes)) {
                 $typesId = self::findIdByTable($typesTable, $tipo, []);
             }
+            // Fallback geral Sueli: se nao achou tipo e nao é Desktop/Notebook, tenta Estado como padrao (prioridade)
+            if ($typesId <= 0 && $tipoAtivo !== 'Desktop' && $tipoAtivo !== 'Notebook') {
+                $estadoId = self::findIdByTable($typesTable, 'Estado', $extraTypes);
+                if ($estadoId > 0) {
+                    $typesId = $estadoId;
+                    $tipo = 'Estado';
+                }
+            }
             // Fallback Sueli: se CATEGORIA/TIPO_ATIVO == TIPO e ainda nao achou, usa primeiro Tipo disponivel da definicao
             if ($typesId <= 0 && $tipo !== '' && $tipoAtivo !== null && self::normalize($tipo) === self::normalize($tipoAtivo)) {
                 global $DB;
@@ -457,14 +465,6 @@ class XlsxService
                 $row = $fallback->current();
                 if ($row) {
                     $typesId = (int) $row['id'];
-                }
-            }
-            // Fallback geral Sueli: se nao achou tipo e nao é Desktop/Notebook, tenta Estado como padrao
-            if ($typesId <= 0 && $tipoAtivo !== 'Desktop' && $tipoAtivo !== 'Notebook') {
-                $estadoId = self::findIdByTable($typesTable, 'Estado', $extraTypes);
-                if ($estadoId > 0) {
-                    $typesId = $estadoId;
-                    $tipo = 'Estado';
                 }
             }
             if ($tipo === '') {

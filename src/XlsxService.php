@@ -95,6 +95,9 @@ class XlsxService
         if (str_contains($needle, 'celular')) {
             return 'Celular';
         }
+        if (str_contains($needle, 'smartphone') || str_contains($needle, 'sphone') || str_contains($needle, 'iphone')) {
+            return 'Celular';
+        }
         // Abas Sueli: Educatron e Televisão -> Televisão
         if (str_contains($needle, 'educatron') || str_contains($needle, 'televisao') || str_contains($needle, 'tv')) {
             return 'Televisao';
@@ -342,6 +345,135 @@ class XlsxService
         return $row ? (int) $row['id'] : 0;
     }
 
+    public static function ensureManufacturer(string $name): int
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return 0;
+        }
+        $id = self::findIdByTable('glpi_manufacturers', $name);
+        if ($id > 0) {
+            return $id;
+        }
+        global $DB;
+        // Tenta via API do GLPI
+        if (class_exists('Manufacturer')) {
+            try {
+                $m = new \Manufacturer();
+                $newId = $m->add(['name' => $name]);
+                if ($newId) {
+                    return (int) $newId;
+                }
+            } catch (\Throwable $e) {
+                // fallback para insert direto
+            }
+        }
+        $res = $DB->insert('glpi_manufacturers', ['name' => $name]);
+        return $res ? (int) $DB->insertId() : 0;
+    }
+
+    public static function ensureAssetType(string $systemName, string $typeName): int
+    {
+        $typeName = trim($typeName);
+        if ($typeName === '') {
+            return 0;
+        }
+        $isLegacy = AssetManager::isLegacyType($systemName);
+        $table = $isLegacy ? 'glpi_phonetypes' : 'glpi_assets_assettypes';
+        $extra = [];
+        if (!$isLegacy) {
+            $def = AssetManager::getDefinition($systemName);
+            if ($def !== null) {
+                $extra = ['assets_assetdefinitions_id' => (int) $def->getID()];
+            }
+        }
+        $id = self::findIdByTable($table, $typeName, $extra);
+        if ($id > 0) {
+            return $id;
+        }
+        if (!empty($extra)) {
+            $id = self::findIdByTable($table, $typeName, []);
+            if ($id > 0) {
+                return $id;
+            }
+        }
+        global $DB;
+        $concreteClass = AssetManager::getTypeClass($systemName);
+        if ($concreteClass !== null && class_exists($concreteClass)) {
+            try {
+                $item = new $concreteClass();
+                $input = ['name' => $typeName];
+                if (!$isLegacy && isset($extra['assets_assetdefinitions_id'])) {
+                    $input['assets_assetdefinitions_id'] = $extra['assets_assetdefinitions_id'];
+                }
+                $newId = $item->add($input);
+                if ($newId) {
+                    return (int) $newId;
+                }
+            } catch (\Throwable $e) {
+                // fallback
+            }
+        }
+        $now = date('Y-m-d H:i:s');
+        $input = ['name' => $typeName, 'date_creation' => $now, 'date_mod' => $now];
+        if (!$isLegacy && isset($extra['assets_assetdefinitions_id'])) {
+            $input['assets_assetdefinitions_id'] = $extra['assets_assetdefinitions_id'];
+        }
+        $res = $DB->insert($table, $input);
+        return $res ? (int) $DB->insertId() : 0;
+    }
+
+    public static function ensureAssetModel(string $systemName, string $modelName): int
+    {
+        $modelName = trim($modelName);
+        if ($modelName === '') {
+            return 0;
+        }
+        $isLegacy = AssetManager::isLegacyType($systemName);
+        $table = $isLegacy ? 'glpi_phonemodels' : 'glpi_assets_assetmodels';
+        $extra = [];
+        if (!$isLegacy) {
+            $def = AssetManager::getDefinition($systemName);
+            if ($def !== null) {
+                $extra = ['assets_assetdefinitions_id' => (int) $def->getID()];
+            }
+        }
+        $id = self::findIdByTable($table, $modelName, $extra);
+        if ($id > 0) {
+            return $id;
+        }
+        if (!empty($extra)) {
+            $id = self::findIdByTable($table, $modelName, []);
+            if ($id > 0) {
+                return $id;
+            }
+        }
+        global $DB;
+        $concreteClass = AssetManager::getModelClass($systemName);
+        if ($concreteClass !== null && class_exists($concreteClass)) {
+            try {
+                $item = new $concreteClass();
+                $input = ['name' => $modelName];
+                if (!$isLegacy && isset($extra['assets_assetdefinitions_id'])) {
+                    $input['assets_assetdefinitions_id'] = $extra['assets_assetdefinitions_id'];
+                }
+                $newId = $item->add($input);
+                if ($newId) {
+                    return (int) $newId;
+                }
+            } catch (\Throwable $e) {
+                // fallback
+            }
+        }
+        $now = date('Y-m-d H:i:s');
+        $input = ['name' => $modelName, 'date_creation' => $now, 'date_mod' => $now];
+        if (!$isLegacy && isset($extra['assets_assetdefinitions_id'])) {
+            $input['assets_assetdefinitions_id'] = $extra['assets_assetdefinitions_id'];
+        }
+        $res = $DB->insert($table, $input);
+        return $res ? (int) $DB->insertId() : 0;
+    }
+
     /**
      * Valida e monta o input de criação de um ativo a partir da linha do XLSX.
      *
@@ -408,7 +540,11 @@ class XlsxService
         if ($fabricante !== '') {
             $manufacturersId = self::findIdByTable('glpi_manufacturers', $fabricante);
             if ($manufacturersId <= 0) {
-                $errors[] = "Fabricante nao encontrado no GLPI: '$fabricante'.";
+                // Auto-cria fabricante quando nao existe (ex: FortiGate)
+                $manufacturersId = self::ensureManufacturer($fabricante);
+                if ($manufacturersId <= 0) {
+                    $errors[] = "Fabricante nao encontrado no GLPI: '$fabricante'.";
+                }
             }
         }
 
@@ -471,7 +607,11 @@ class XlsxService
             if ($tipo === '') {
                 $errors[] = 'Tipo obrigatorio.';
             } elseif ($typesId <= 0) {
-                $errors[] = "Tipo nao encontrado no GLPI para $tipoAtivo: '$tipo'. Cadastre o Tipo em GLPI > Ativos > Tipos (vinculado a $tipoAtivo).";
+                // Tenta criar automaticamente o Tipo se nao existe
+                $typesId = self::ensureAssetType($tipoAtivo, $tipo);
+                if ($typesId <= 0) {
+                    $errors[] = "Tipo nao encontrado no GLPI para $tipoAtivo: '$tipo'. Cadastre o Tipo em GLPI > Ativos > Tipos (vinculado a $tipoAtivo).";
+                }
             }
 
             if ($tipoAtivo === 'PlataformadeRecarga' || $tipoAtivo === 'RackdeRede') {
@@ -484,7 +624,11 @@ class XlsxService
                         $modelsId = self::findIdByTable($modelTable, $modelo, []);
                     }
                     if ($modelsId <= 0) {
-                        $errors[] = "Modelo nao encontrado no GLPI: '$modelo'.";
+                        // Auto-cria modelo
+                        $modelsId = self::ensureAssetModel($tipoAtivo, $modelo);
+                        if ($modelsId <= 0) {
+                            $errors[] = "Modelo nao encontrado no GLPI: '$modelo'.";
+                        }
                     }
                 }
             } else {
@@ -495,7 +639,11 @@ class XlsxService
                 if ($modelo === '') {
                     $errors[] = "Modelo obrigatorio para $tipoAtivo.";
                 } elseif ($modelsId <= 0) {
-                    $errors[] = "Modelo nao encontrado no GLPI: '$modelo'.";
+                    // Auto-cria modelo quando nao existe (ex: 1910)
+                    $modelsId = self::ensureAssetModel($tipoAtivo, $modelo);
+                    if ($modelsId <= 0) {
+                        $errors[] = "Modelo nao encontrado no GLPI: '$modelo'.";
+                    }
                 }
             }
         }

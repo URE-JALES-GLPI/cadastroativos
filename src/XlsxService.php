@@ -230,10 +230,9 @@ class XlsxService
                     // Mantem tambem indice numerico para compat legada com mapRow
                     $line[$c] = $val;
                 }
-                // Injeta tipo_ativo padrao para abas sem coluna CATEGORIA
-                if ($defaultTipoAtivo !== null && empty(trim((string) ($line['tipo_ativo'] ?? '')))) {
+                // Injeta tipo_ativo padrao para abas sem coluna CATEGORIA (so se linha ja tem algum dado real)
+                if ($defaultTipoAtivo !== null && $hasData && empty(trim((string) ($line['tipo_ativo'] ?? '')))) {
                     $line['tipo_ativo'] = $defaultTipoAtivo;
-                    $hasData = true;
                 }
                 if ($hasData) {
                     $rows[] = $line;

@@ -68,6 +68,13 @@ final class ImportarXlsxController extends AbstractController
                 if (XlsxService::isEmptyRow($data)) {
                     continue;
                 }
+                // Ignora linhas totalmente em branco da Sueli (a partir da 219)
+                $tipoCheck = trim((string) ($data['tipo_ativo'] ?? ''));
+                $numCheck = trim((string) ($data['numero_inventario'] ?? $data['serial'] ?? ''));
+                $statusCheck = trim((string) ($data['status'] ?? ''));
+                if ($tipoCheck === '' && $numCheck === '' && $statusCheck === '') {
+                    continue;
+                }
 
                 $built = XlsxService::buildRow($data, $availableTypes);
                 if (!$built['ok']) {

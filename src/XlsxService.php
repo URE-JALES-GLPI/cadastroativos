@@ -332,6 +332,10 @@ class XlsxService
         }
 
         $status     = trim((string) ($data['status'] ?? ''));
+        // Regra Sueli: "Chamado aberto" na planilha = "Garantia" no GLPI
+        if (self::normalize($status) === 'chamadoaberto') {
+            $status = 'Garantia';
+        }
         $fabricante = trim((string) ($data['fabricante'] ?? ''));
         $tipo       = trim((string) ($data['tipo'] ?? ''));
         // Fallback: se a planilha da Sueli usa CATEGORIA DO EQUIPAMENTO como TIPO, replica para campo 'tipo' quando vazio
@@ -371,16 +375,23 @@ class XlsxService
             }
 
             $typesId = self::findIdByTable($typesTable, $tipo, $extraTypes);
+            // Fallback: tenta sem filtro de definicao (caso tipo exista mas sem vinculo)
+            if ($typesId <= 0 && $tipo !== '' && !empty($extraTypes)) {
+                $typesId = self::findIdByTable($typesTable, $tipo, []);
+            }
             if ($tipo === '') {
                 $errors[] = 'Tipo obrigatorio.';
             } elseif ($typesId <= 0) {
-                $errors[] = "Tipo nao encontrado no GLPI para $tipoAtivo: '$tipo'.";
+                $errors[] = "Tipo nao encontrado no GLPI para $tipoAtivo: '$tipo'. Cadastre o Tipo em GLPI > Ativos > Tipos (vinculado a $tipoAtivo).";
             }
 
             if ($tipoAtivo === 'PlataformadeRecarga') {
                 $modelsId = 0;
             } else {
                 $modelsId = self::findIdByTable($modelTable, $modelo, $extraModels);
+                if ($modelsId <= 0 && $modelo !== '' && !empty($extraModels)) {
+                    $modelsId = self::findIdByTable($modelTable, $modelo, []);
+                }
                 if ($modelo === '') {
                     $errors[] = "Modelo obrigatorio para $tipoAtivo.";
                 } elseif ($modelsId <= 0) {

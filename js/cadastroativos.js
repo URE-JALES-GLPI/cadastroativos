@@ -680,8 +680,64 @@ function initImportXlsx() {
         return;
     }
 
+    function abrirModalConfirmImport(onConfirm) {
+        var entityName = (cfg.entityName || 'esta entidade');
+        var entityId = cfg.entityId != null ? cfg.entityId : '';
+        var overlay = document.createElement('div');
+        overlay.id = 'ca-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:1060;';
+        var fileName = (fileInput.files && fileInput.files[0]) ? fileInput.files[0].name : '';
+        overlay.innerHTML = '<div id="ca-modal" style="width:480px;max-width:calc(100vw - 24px);background:#fff;border-radius:14px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.3);">'
+            + '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;"><div style="width:42px;height:42px;border-radius:10px;background:#f59e0b;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;flex-shrink:0;"><i class="fas fa-building"></i></div>'
+            + '<div><h3 style="margin:0 0 6px;font-size:1.05rem;color:#0f172a;">Confirmar importação</h3>'
+            + '<p style="margin:0;font-size:.86rem;color:#475569;line-height:1.5;">Você está na entidade <strong style="color:#0f172a;">' + entityName + '</strong> <span style="font-size:.78rem;color:#94a3b8;">(ID: ' + entityId + ')</span><br>Arquivo: <strong>' + fileName + '</strong><br><span style="font-size:.78rem;color:#64748b;">Os ativos serão cadastrados/atualizados nesta entidade e a sincronização de série em branco será aplicada.</span></p></div></div>'
+            + '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;cursor:pointer;margin:0;">'
+            + '<input type="checkbox" id="ca-confirm-entity-chk" style="width:18px;height:18px;accent-color:#f59e0b;margin-top:2px;flex-shrink:0;">'
+            + '<span style="font-size:.84rem;color:#78350f;line-height:1.4;"><strong>Sim, confirmo</strong> que quero importar para a entidade <strong>' + entityName + '</strong> e estou ciente da sincronização automática (vai cadastrar a diferença e vai apagar excedentes em branco).</span>'
+            + '</label>'
+            + '<div id="ca-confirm-err" style="font-size:.76rem;color:#dc2626;margin-top:8px;min-height:1em;"></div>'
+            + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">'
+            + '<button type="button" class="ca-modal-cancel" style="padding:9px 16px;border-radius:8px;background:#f1f5f9;color:#475569;border:none;font-weight:700;cursor:pointer;">Cancelar</button>'
+            + '<button type="button" class="ca-modal-save" id="ca-confirm-import-btn" disabled style="padding:9px 16px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;border:none;font-weight:700;cursor:pointer;opacity:.6;"><i class="fas fa-upload"></i> Confirmar importação</button>'
+            + '</div></div>';
+        document.body.appendChild(overlay);
+        var chk = overlay.querySelector('#ca-confirm-entity-chk');
+        var btnConfirm = overlay.querySelector('#ca-confirm-import-btn');
+        var btnCancel = overlay.querySelector('.ca-modal-cancel');
+        var errEl = overlay.querySelector('#ca-confirm-err');
+        function fechar(){ overlay.remove(); }
+        btnCancel.addEventListener('click', fechar);
+        overlay.addEventListener('click', function(e){ if(e.target===overlay) fechar(); });
+        chk.addEventListener('change', function(){
+            if (chk.checked) {
+                btnConfirm.disabled = false;
+                btnConfirm.style.opacity = '1';
+                errEl.textContent = '';
+            } else {
+                btnConfirm.disabled = true;
+                btnConfirm.style.opacity = '.6';
+            }
+        });
+        btnConfirm.addEventListener('click', function(){
+            if (!chk.checked) {
+                errEl.textContent = 'Marque a caixa para confirmar a entidade.';
+                return;
+            }
+            overlay.remove();
+            onConfirm();
+        });
+        setTimeout(function(){ if(chk) chk.focus(); }, 50);
+        overlay.tabIndex = -1;
+        overlay.focus();
+        overlay.addEventListener('keydown', function(e){ if(e.key==='Escape') fechar(); });
+    }
+
     if (btn) {
-        btn.addEventListener('click', function () { doImport(false); });
+        btn.addEventListener('click', function () {
+            var f = fileInput.files && fileInput.files[0];
+            if (!f) return;
+            abrirModalConfirmImport(function() { doImport(false); });
+        });
     }
 
     function mostrarImportResult(erros, importados, total, pulados, deletados) {

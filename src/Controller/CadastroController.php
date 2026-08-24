@@ -435,7 +435,9 @@ final class CadastroController extends AbstractController
         <script>
         var CA_CONFIG = {
             ajaxBase: (typeof CFG_GLPI !== 'undefined' ? CFG_GLPI.root_doc : '') + '/plugins/cadastroativos/ajax/',
-            root: (typeof CFG_GLPI !== 'undefined' ? CFG_GLPI.root_doc : '')
+            root: (typeof CFG_GLPI !== 'undefined' ? CFG_GLPI.root_doc : ''),
+            entityName: <?= json_encode($entityName, JSON_UNESCAPED_UNICODE) ?>,
+            entityId: <?= (int)$currentEntityId ?>
         };
         </script>
         <script>

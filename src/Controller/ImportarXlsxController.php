@@ -79,19 +79,26 @@ final class ImportarXlsxController extends AbstractController
             }
             $distinctCies = array_keys($sheetCies);
             if (!empty($distinctCies)) {
-                if (count($distinctCies) > 1) {
-                    $total = count($distinctCies);
-                    $amostra = array_slice($distinctCies, 0, 6);
-                    $listaCurta = implode(', ', $amostra);
-                    if ($total > 6) $listaCurta .= ' … (+'.($total-6).' outras)';
-                    $msg = "⚠️ A planilha contém <strong>$total CIEs diferentes</strong> (<code style=\"background:#fef3c7;padding:2px 6px;border-radius:4px;font-size:.82rem;\">$listaCurta</code>). "
-                         . "Cada importação deve conter apenas <strong>uma</strong> CIE.<br>"
-                         . "<span style=\"font-size:.82rem;color:#92400e;display:inline-block;margin-top:6px;\">👉 Verifique a coluna <strong>CIE</strong>: preencha todas as linhas com o mesmo código (ex: <strong>28393</strong>) ou deixe a coluna vazia. "
-                         . "Valores como 12, 24, 36 são números de inventário e não devem estar na coluna CIE.</span>";
-                    return new JsonResponse(['success'=>false,'errors'=>[$msg]], 400);
+                // Filtra apenas CIEs validas do mapa para nao confundir numeros de inventario (12,24...) com CIE
+                $validDistinctCies = array_values(array_filter($distinctCies, fn($c) => isset(XlsxService::CIE_MAP[$c])));
+                // Se a planilha tem CIEs mas nenhuma e valida (ex: 12,24 sao inventario), ignora validacao de CIE
+                if (empty($validDistinctCies)) {
+                    $validDistinctCies = [];
                 }
-                $sheetCie = (string)$distinctCies[0];
-                $sheetEntity = XlsxService::getEntityNameByCie($sheetCie) ?? "CIE $sheetCie";
+                // So valida se houver CIE valida na planilha
+                if (!empty($validDistinctCies)) {
+                    if (count($validDistinctCies) > 1) {
+                        $total = count($validDistinctCies);
+                        $amostra = array_slice($validDistinctCies, 0, 6);
+                        $listaCurta = implode(', ', $amostra);
+                        if ($total > 6) $listaCurta .= ' … (+'.($total-6).' outras)';
+                        $msg = "⚠️ A planilha contém <strong>$total CIEs diferentes</strong> (<code style=\"background:#fef3c7;padding:2px 6px;border-radius:4px;font-size:.82rem;\">$listaCurta</code>). "
+                             . "Cada importação deve conter apenas <strong>uma</strong> CIE.<br>"
+                             . "<span style=\"font-size:.82rem;color:#92400e;display:inline-block;margin-top:6px;\">👉 Verifique a coluna <strong>CIE</strong>: preencha todas as linhas com o mesmo código (ex: <strong>28393</strong>) ou deixe a coluna vazia.</span>";
+                        return new JsonResponse(['success'=>false,'errors'=>[$msg]], 400);
+                    }
+                    $sheetCie = (string)$validDistinctCies[0];
+                    $sheetEntity = XlsxService::getEntityNameByCie($sheetCie) ?? "CIE $sheetCie";
                 $expectedCie = XlsxService::getExpectedCieForEntity($entityName);
                 if ($expectedCie !== null) {
                     if ($sheetCie !== (string)$expectedCie) {
@@ -121,6 +128,7 @@ final class ImportarXlsxController extends AbstractController
                         }
                     }
                 }
+            }
             }
 
             if (!$isPreview) {

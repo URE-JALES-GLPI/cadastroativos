@@ -292,6 +292,10 @@ class XlsxService
                 }
                 $norm = self::normalize($label);
                 $key  = self::headerMap()[$norm] ?? null;
+                // Fallback robusto: qualquer cabeçalho contendo 'cie' é tratado como CIEE (cobre variações como "CIEE Escola", "CIE - Unidade", "Código CIE")
+                if ($key === null && str_contains($norm, 'cie')) {
+                    $key = 'ciee';
+                }
                 if ($key !== null) {
                     $sheetHeaders[$c] = $key;
                     $globalKeys[$key] = true;

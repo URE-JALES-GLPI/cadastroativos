@@ -69,19 +69,18 @@ final class ImportarXlsxController extends AbstractController
             $entityNameRaw = \Dropdown::getDropdownName('glpi_entities', $entityId);
             $entityName = \Html::cleanInputText($entityNameRaw);
 
-            // === Validacao CIE vs entidade atual (se coluna CIEE existir) ===
-            $hasCieeColumn = in_array('ciee', $parsed['headers'] ?? [], true);
-            if ($hasCieeColumn) {
-                $sheetCies = [];
-                foreach ($parsed['rows'] as $r) {
-                    $cieVal = trim((string)($r['ciee'] ?? ''));
-                    if ($cieVal === '') continue;
-                    $cieNorm = XlsxService::normalizeCie($cieVal);
-                    if ($cieNorm !== '') $sheetCies[$cieNorm] = true;
-                }
-                $distinctCies = array_keys($sheetCies);
+            // === Validacao CIE vs entidade atual (bloqueia se planilha pertence a outra entidade) ===
+            $sheetCies = [];
+            foreach ($parsed['rows'] as $r) {
+                $cieVal = trim((string)($r['ciee'] ?? ''));
+                if ($cieVal === '') continue;
+                $cieNorm = XlsxService::normalizeCie($cieVal);
+                if ($cieNorm !== '') $sheetCies[$cieNorm] = true;
+            }
+            $distinctCies = array_keys($sheetCies);
+            if (!empty($distinctCies)) {
                 $expectedCie = XlsxService::getExpectedCieForEntity($entityName);
-                if (!empty($distinctCies) && $expectedCie !== null) {
+                if ($expectedCie !== null) {
                     if (count($distinctCies) > 1) {
                         $lista = implode(', ', $distinctCies);
                         return new JsonResponse(['success'=>false,'errors'=>["A planilha contém múltiplas CIEs diferentes: $lista. Cada importação deve conter apenas uma CIE (uma entidade)."]], 400);

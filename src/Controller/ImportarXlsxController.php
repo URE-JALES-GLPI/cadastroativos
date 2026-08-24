@@ -80,8 +80,15 @@ final class ImportarXlsxController extends AbstractController
             $distinctCies = array_keys($sheetCies);
             if (!empty($distinctCies)) {
                 if (count($distinctCies) > 1) {
-                    $lista = implode(', ', $distinctCies);
-                    return new JsonResponse(['success'=>false,'errors'=>["A planilha contém múltiplas CIEs diferentes: $lista. Cada importação deve conter apenas uma CIE (uma entidade)."]], 400);
+                    $total = count($distinctCies);
+                    $amostra = array_slice($distinctCies, 0, 6);
+                    $listaCurta = implode(', ', $amostra);
+                    if ($total > 6) $listaCurta .= ' … (+'.($total-6).' outras)';
+                    $msg = "⚠️ A planilha contém <strong>$total CIEs diferentes</strong> (<code style=\"background:#fef3c7;padding:2px 6px;border-radius:4px;font-size:.82rem;\">$listaCurta</code>). "
+                         . "Cada importação deve conter apenas <strong>uma</strong> CIE.<br>"
+                         . "<span style=\"font-size:.82rem;color:#92400e;display:inline-block;margin-top:6px;\">👉 Verifique a coluna <strong>CIE</strong>: preencha todas as linhas com o mesmo código (ex: <strong>28393</strong>) ou deixe a coluna vazia. "
+                         . "Valores como 12, 24, 36 são números de inventário e não devem estar na coluna CIE.</span>";
+                    return new JsonResponse(['success'=>false,'errors'=>[$msg]], 400);
                 }
                 $sheetCie = (string)$distinctCies[0];
                 $sheetEntity = XlsxService::getEntityNameByCie($sheetCie) ?? "CIE $sheetCie";
@@ -89,13 +96,13 @@ final class ImportarXlsxController extends AbstractController
                 if ($expectedCie !== null) {
                     if ($sheetCie !== (string)$expectedCie) {
                         $expectedEntity = XlsxService::getEntityNameByCie($expectedCie) ?? $entityName;
-                        $msg = "Divergência de entidade: você está em \"$entityName\" (CIE $expectedCie), mas a planilha é da entidade \"$sheetEntity\" (CIE $sheetCie). "
-                             . "Acesse a entidade correta no GLPI (selecione \"$sheetEntity\") e tente novamente. "
-                             . "Dica: no topo do GLPI, use o seletor de entidades para mudar para \"$sheetEntity\".";
+                        $msg = "🏫 <strong>Entidade errada!</strong> Você está em <strong>\"$entityName\"</strong> <span style=\"background:#fef3c7;padding:1px 6px;border-radius:4px;\">CIE $expectedCie</span>, "
+                             . "mas a planilha é da <strong>\"$sheetEntity\"</strong> <span style=\"background:#fee2e2;padding:1px 6px;border-radius:4px;\">CIE $sheetCie</span>.<br>"
+                             . "<span style=\"display:inline-block;margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:.84rem;\">"
+                             . "👉 Acesse a entidade correta: no topo do GLPI clique no seletor de entidades e selecione <strong>\"$sheetEntity\"</strong>, depois importe novamente.</span>";
                         return new JsonResponse(['success'=>false,'errors'=>[$msg],'expected_cie'=>$expectedCie,'expected_entity'=>$expectedEntity,'sheet_cie'=>$sheetCie,'sheet_entity'=>$sheetEntity,'current_entity'=>$entityName,'current_cie'=>$expectedCie], 400);
                     }
                 } else {
-                    // Entidade atual sem CIE mapeado: valida por nome direto apenas se CIE da planilha for conhecido
                     $sheetEntityRaw = XlsxService::getEntityNameByCie($sheetCie);
                     if ($sheetEntityRaw !== null) {
                         $normCurrent = XlsxService::normalize($entityName);
@@ -107,8 +114,9 @@ final class ImportarXlsxController extends AbstractController
                             }
                         }
                         if (!$isMatch) {
-                            $msg = "Divergência de entidade: você está em \"$entityName\" (sem CIE mapeado), mas a planilha é da entidade \"$sheetEntity\" (CIE $sheetCie). "
-                                 . "Acesse a entidade correta no GLPI (selecione \"$sheetEntity\") e tente novamente. ";
+                            $msg = "🏫 <strong>Entidade errada!</strong> Você está em <strong>\"$entityName\"</strong> (sem CIE mapeado), mas a planilha é da <strong>\"$sheetEntity\"</strong> (CIE $sheetCie).<br>"
+                                 . "<span style=\"display:inline-block;margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:.84rem;\">"
+                                 . "👉 Selecione <strong>\"$sheetEntity\"</strong> no seletor de entidades e tente novamente.</span>";
                             return new JsonResponse(['success'=>false,'errors'=>[$msg],'sheet_cie'=>$sheetCie,'sheet_entity'=>$sheetEntity,'current_entity'=>$entityName], 400);
                         }
                     }

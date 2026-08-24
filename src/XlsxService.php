@@ -292,8 +292,8 @@ class XlsxService
                 }
                 $norm = self::normalize($label);
                 $key  = self::headerMap()[$norm] ?? null;
-                // Fallback robusto: qualquer cabeçalho contendo 'cie' é tratado como CIEE (cobre variações como "CIEE Escola", "CIE - Unidade", "Código CIE")
-                if ($key === null && str_contains($norm, 'cie')) {
+                // Fallback: cabeçalho que começa com 'cie' é tratado como CIEE (cobre "CIE", "CIEE", "CIEE Escola", etc). Evita falso positivo em "ESPECIE"
+                if ($key === null && str_starts_with($norm, 'cie')) {
                     $key = 'ciee';
                 }
                 if ($key !== null) {

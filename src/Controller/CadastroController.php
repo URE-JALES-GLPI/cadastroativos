@@ -201,14 +201,16 @@ final class CadastroController extends AbstractController
                             <i class="fas fa-upload"></i> Importar
                         </button>
                     </div>
-                    <div style="margin-top:12px; display:flex; align-items:center; gap:8px; padding:10px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px;">
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:.84rem; color:#78350f; font-weight:600; margin:0;">
-                            <input type="checkbox" id="ca-import-allow-empty" style="width:16px; height:16px; accent-color:#f59e0b;">
-                            Permitir cadastro com número de série em branco
-                        </label>
-                        <span style="font-size:.76rem; color:#92400e; margin-left:6px;">(se marcado, cadastra só a diferença por categoria: ex. 10 Tablets em branco no GLPI + 13 na planilha = cadastra só 3)</span>
+                    <div style="margin-top:10px; padding:10px 14px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; font-size:.78rem; color:#14532d; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-sync-alt" style="color:#16a34a;"></i>
+                        <span><strong>Sincronização automática:</strong> itens com série em branco são sincronizados por diferença — se a planilha tiver mais que o GLPI, cadastra a diferença; se tiver menos, apaga o excedente do GLPI para bater a planilha. Ex: 10 Tablets em branco no GLPI + 14 na planilha = cadastra 4; 14 no GLPI e 10 na planilha = apaga 4.</span>
                     </div>
                     <div id="ca-import-result"></div>
+                    <div id="ca-revert-area" style="margin-top:14px; display:none; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 14px; background:#fef2f2; border:1px solid #fecaca; border-radius:10px;">
+                        <button type="button" id="ca-revert-btn" style="padding:9px 16px; background:linear-gradient(135deg,#dc2626,#ef4444); color:#fff; border:none; border-radius:8px; font-size:.84rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:7px; box-shadow:0 2px 8px rgba(220,38,38,.3);"><i class="fas fa-undo"></i> Reverter última implantação</button>
+                        <span id="ca-revert-info" style="font-size:.78rem; color:#7f1d1d; line-height:1.4;"></span>
+                    </div>
+                    <div id="ca-revert-result" style="margin-top:10px;"></div>
                 </div>
             </div>
             <?php endif; ?>

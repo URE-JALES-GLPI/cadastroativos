@@ -58,22 +58,21 @@ final class ImportarXlsxController extends AbstractController
 
             $availableTypes = AssetManager::getAvailableTypes();
             $isPreview   = $request->request->get('preview') === '1' || $request->request->get('dry_run') === '1';
-            $onDuplicate = $request->request->get('on_duplicate', 'skip'); // skip | abort (padrao agora skip)
+            $onDuplicate = $request->request->get('on_duplicate', 'skip'); // skip | abort
             $doUpdate    = $request->request->get('update_existing') === '1';
-            // Checkbox: permitir cadastro com numero de inventario/serie em branco
-            $allowEmpty = $request->request->get('allow_empty_serial') === '1'
-                || $request->request->get('allow_empty') === '1'
-                || $request->request->get('permitir_branco') === '1'
-                || $request->request->get('permitir_sem_serie') === '1';
+            // Sempre permite cadastro em branco: sincroniza por diferenca
+            $allowEmpty = true;
 
             $entityId = AssetManager::getCurrentEntityId();
+            $usersId  = (int) Session::getLoginUserID();
+            $filename = $file->getClientOriginalName();
 
             if (!$isPreview) {
                 $DB->beginTransaction();
             }
 
             // === FASE 1: varredura e validacao sem gravar, separando brancos vs nao-brancos ===
-            $vistosFirst = []; // para detectar duplicado dentro do arquivo (raw e built)
+            $vistosFirst = [];
             $errosFirst  = [];
             $puladosFirst = 0;
 
@@ -83,7 +82,7 @@ final class ImportarXlsxController extends AbstractController
             $validNonBlanks = [];
 
             foreach ($parsed['rows'] as $idx => $row) {
-                $line = $idx + 2; // linha 1 = cabecalho
+                $line = $idx + 2;
                 $data = XlsxService::mapRow($row, $parsed['headerMap']);
                 if (XlsxService::isEmptyRow($data)) {
                     continue;
@@ -93,12 +92,10 @@ final class ImportarXlsxController extends AbstractController
                     continue;
                 }
 
-                // Checa duplicado dentro do arquivo ANTES do buildRow (raw)
                 $rawNum = trim((string) ($data['numero_inventario'] ?? $data['serial'] ?? ''));
                 $rawTipoNorm = XlsxService::typeSystemName($tipoCheck) ?? $tipoCheck;
                 $dupKeyRaw = $rawTipoNorm . '|' . $rawNum . '|' . $entityId;
                 if ($rawNum !== '' && isset($vistosFirst[$dupKeyRaw])) {
-                    // duplicado dentro do arquivo, pula silenciosamente (nao conta como erro)
                     continue;
                 }
 
@@ -119,7 +116,6 @@ final class ImportarXlsxController extends AbstractController
                     $puladosFirst++;
                     continue;
                 }
-                // Registra vistos para ambas as chaves
                 if ($rawNum !== '') {
                     $vistosFirst[$dupKeyRaw] = $line;
                 }
@@ -137,71 +133,72 @@ final class ImportarXlsxController extends AbstractController
                 }
             }
 
-            // === FASE 2: logica de em branco por categoria ===
+            // === FASE 2: sincronizacao de em branco por categoria (sempre ativa) ===
             $dbBlankPerType = [];
             $allowedPerType = [];
+            $toDeletePerType = [];
             $sheetBlankPerType = [];
-            $blanksSkippedNoPerm = 0;
             $blanksSkippedDiff  = 0;
             $blanksToImport = [];
+            $totalToDelete = 0;
 
-            if (empty($validBlanksPerType)) {
-                // nada em branco, sem acao extra
-            } elseif (!$allowEmpty) {
-                // Nao permitido: todos os brancos sao pulados
-                foreach ($validBlanksPerType as $tipo => $list) {
-                    $sheetBlankPerType[$tipo] = count($list);
-                    $allowedPerType[$tipo] = 0;
-                    $blanksSkippedNoPerm += count($list);
+            // Tipos presentes na planilha (com ou sem branco) para sincronizar também casos onde planilha tem 0 brancos mas tem o tipo
+            $sheetTypesPresent = array_keys($validBlanksPerType);
+            foreach ($validNonBlanks as $e) {
+                $t = $e['built']['tipo_ativo'] ?? null;
+                if ($t && !in_array($t, $sheetTypesPresent, true)) {
+                    $sheetTypesPresent[] = $t;
                 }
-                $puladosFirst += $blanksSkippedNoPerm;
-                $validBlanksPerType = [];
+            }
+
+            if (empty($sheetTypesPresent)) {
+                // nenhum tipo valido na planilha: nada para sincronizar
             } else {
-                // Permitido: calcula diferenca por categoria (sheet - db)
-                foreach ($validBlanksPerType as $tipo => $list) {
+                foreach ($sheetTypesPresent as $tipo) {
+                    $list = $validBlanksPerType[$tipo] ?? [];
                     $sheetCount = count($list);
                     $sheetBlankPerType[$tipo] = $sheetCount;
                     $dbCount = AssetManager::countBlankInventory($tipo, $entityId);
                     $dbBlankPerType[$tipo] = $dbCount;
-                    $allowed = $sheetCount - $dbCount;
-                    if ($allowed < 0) {
+
+                    if ($sheetCount > $dbCount) {
+                        $allowed = $sheetCount - $dbCount;
+                        $toDelete = 0;
+                        $toImport = array_slice($list, 0, $allowed);
+                        $skipped = $sheetCount - $allowed;
+                        $blanksToImport = array_merge($blanksToImport, $toImport);
+                    } elseif ($sheetCount < $dbCount) {
                         $allowed = 0;
+                        $toDelete = $dbCount - $sheetCount;
+                        $skipped = $sheetCount;
+                    } else {
+                        $allowed = 0;
+                        $toDelete = 0;
+                        $skipped = $sheetCount;
                     }
                     $allowedPerType[$tipo] = $allowed;
-                    // Mantem apenas os primeiros $allowed em ordem de aparecimento
-                    $toImport = array_slice($list, 0, $allowed);
-                    $skipped  = array_slice($list, $allowed);
-                    $blanksToImport = array_merge($blanksToImport, $toImport);
-                    $blanksSkippedDiff += count($skipped);
+                    $toDeletePerType[$tipo] = $toDelete;
+                    $blanksSkippedDiff += $skipped;
+                    $totalToDelete += $toDelete;
                 }
                 $puladosFirst += $blanksSkippedDiff;
-                // Para pulados por diferenca, validBlanksPerType agora so contem importaveis; mas vamos usar $blanksToImport flatten
             }
 
-            // Se nao permitido, blanksToImport fica vazio; se permitido, ja preenchido
-            if ($allowEmpty && !empty($validBlanksPerType) && empty($blanksToImport)) {
-                // caso acima ja preencheu; mas garante que se validBlanks ainda tem dados, mas allowed==0, nada a importar
-            } elseif ($allowEmpty) {
-                // ja calculado
-            } else {
-                $blanksToImport = [];
-            }
-
-            // Total de candidatos a importar (nao-brancos + brancos permitidos)
             $candidateCount = count($validNonBlanks) + count($blanksToImport);
 
-            // === PREVIEW: apenas retorna contagem ===
+            // === PREVIEW: apenas retorna contagem + o que seria apagado ===
             if ($isPreview) {
                 $importadosPreview = $candidateCount;
 
-                // Monta mensagem auxiliar de brancos
                 $blanksInfo = [];
                 foreach ($sheetBlankPerType as $tipo => $sheetCnt) {
                     $blanksInfo[$tipo] = [
-                        'sheet'   => $sheetCnt,
-                        'db'      => $dbBlankPerType[$tipo] ?? 0,
-                        'allowed' => $allowedPerType[$tipo] ?? 0,
-                        'skipped' => $sheetCnt - ($allowedPerType[$tipo] ?? 0),
+                        'sheet'    => $sheetCnt,
+                        'db'       => $dbBlankPerType[$tipo] ?? 0,
+                        'allowed'  => $allowedPerType[$tipo] ?? 0,
+                        'to_delete'=> $toDeletePerType[$tipo] ?? 0,
+                        'skipped'  => $sheetCnt - ($allowedPerType[$tipo] ?? 0),
+                        'need_delete' => $toDeletePerType[$tipo] ?? 0,
                     ];
                 }
 
@@ -210,13 +207,15 @@ final class ImportarXlsxController extends AbstractController
                     'preview'    => true,
                     'total'      => count($parsed['rows']),
                     'importados' => $importadosPreview,
+                    'deletados'  => $totalToDelete,
                     'pulados'    => $puladosFirst,
                     'erros'      => $errosFirst,
                     'errors'     => array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $errosFirst),
-                    'allow_empty' => $allowEmpty,
+                    'allow_empty' => true,
                     'blanks_info' => $blanksInfo,
                     'sheet_blank_per_type' => $sheetBlankPerType,
                     'db_blank_per_type'    => $dbBlankPerType,
+                    'to_delete_per_type'   => $toDeletePerType,
                 ]);
             }
 
@@ -224,19 +223,40 @@ final class ImportarXlsxController extends AbstractController
             $importados = 0;
             $erros = $errosFirst;
             $pulados = $puladosFirst;
+            $createdIdsPerType = [];
+            $deletedIdsPerType = [];
+            $deletadosCount = 0;
 
-            // Importa nao-brancos
+            // 3a: apagar excedentes (sincroniza para bater diferenca)
+            foreach ($toDeletePerType as $tipo => $needDelete) {
+                if ($needDelete <= 0) continue;
+                $ids = AssetManager::getBlankAssetIds($tipo, $entityId, $needDelete);
+                $deletedForTipo = [];
+                foreach ($ids as $id) {
+                    $ok = AssetManager::softDeleteAsset($tipo, $id);
+                    if ($ok) {
+                        $deletedForTipo[] = $id;
+                        $deletadosCount++;
+                    }
+                }
+                if (!empty($deletedForTipo)) {
+                    $deletedIdsPerType[$tipo] = $deletedForTipo;
+                }
+                // Se não conseguiu deletar todos por algum motivo, contabiliza diferenca mas segue
+            }
+
+            // 3b: importa nao-brancos
             foreach ($validNonBlanks as $entry) {
                 $line  = $entry['linha'];
                 $built = $entry['built'];
 
-                // Upsert
                 if ($doUpdate && ($built['input']['otherserial'] ?? '') !== '') {
                     $existingId = AssetManager::findAssetIdByInventory($built['tipo_ativo'], $built['input']['otherserial'], $built['input']['entities_id']);
                     if ($existingId > 0) {
                         try {
                             AssetManager::updateAsset($built['tipo_ativo'], $existingId, $built['input']);
                             $importados++;
+                            // update não gera created_id novo; não rastreia para revert
                             continue;
                         } catch (\RuntimeException $e) {
                             $erros[] = ['linha' => $line, 'motivo' => $e->getMessage()];
@@ -246,26 +266,32 @@ final class ImportarXlsxController extends AbstractController
                 }
 
                 try {
-                    AssetManager::createAsset($built['tipo_ativo'], $built['input']);
+                    $newId = AssetManager::createAsset($built['tipo_ativo'], $built['input']);
                     $importados++;
+                    $tipo = $built['tipo_ativo'];
+                    if (!isset($createdIdsPerType[$tipo])) $createdIdsPerType[$tipo] = [];
+                    $createdIdsPerType[$tipo][] = $newId;
                 } catch (\RuntimeException $e) {
                     $erros[] = ['linha' => $line, 'motivo' => $e->getMessage()];
                 }
             }
 
-            // Importa brancos permitidos (diferenca)
+            // 3c: importa brancos permitidos (diferenca)
             foreach ($blanksToImport as $entry) {
                 $line  = $entry['linha'];
                 $built = $entry['built'];
                 try {
-                    AssetManager::createAsset($built['tipo_ativo'], $built['input']);
+                    $newId = AssetManager::createAsset($built['tipo_ativo'], $built['input']);
                     $importados++;
+                    $tipo = $built['tipo_ativo'];
+                    if (!isset($createdIdsPerType[$tipo])) $createdIdsPerType[$tipo] = [];
+                    $createdIdsPerType[$tipo][] = $newId;
                 } catch (\RuntimeException $e) {
                     $erros[] = ['linha' => $line, 'motivo' => $e->getMessage()];
                 }
             }
 
-            // Atomico: se houver 1 erro e modo abort, nao sobe nenhum (rollback)
+            // Atomico: se houver erro e modo abort, rollback tudo
             if (!empty($erros) && $onDuplicate === 'abort') {
                 $DB->rollBack();
                 $flat = array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $erros);
@@ -273,53 +299,110 @@ final class ImportarXlsxController extends AbstractController
                     'success'    => false,
                     'total'      => count($parsed['rows']),
                     'importados' => 0,
+                    'deletados'  => 0,
                     'pulados'    => $pulados,
                     'erros'      => $erros,
                     'errors'     => $flat,
-                    'allow_empty' => $allowEmpty,
+                    'allow_empty' => true,
                     'blanks_info' => array_map(fn($t) => [
                         'sheet' => $sheetBlankPerType[$t] ?? 0,
                         'db'    => $dbBlankPerType[$t] ?? 0,
                         'allowed' => $allowedPerType[$t] ?? 0,
+                        'to_delete' => $toDeletePerType[$t] ?? 0,
                     ], array_keys($sheetBlankPerType)),
                 ]);
             }
-            // Modo skip: mesmo com erros, commit parcial
             if (!empty($erros) && $onDuplicate === 'skip') {
                 $DB->commit();
+                // mesmo com erros, grava historico parcial
+                $blanksInfoResp = [];
+                foreach ($sheetBlankPerType as $tipo => $sheetCnt) {
+                    $blanksInfoResp[$tipo] = [
+                        'sheet'   => $sheetCnt,
+                        'db'      => $dbBlankPerType[$tipo] ?? 0,
+                        'allowed' => $allowedPerType[$tipo] ?? 0,
+                        'to_delete' => $toDeletePerType[$tipo] ?? 0,
+                        'skipped' => $sheetCnt - ($allowedPerType[$tipo] ?? 0),
+                    ];
+                }
+                // Historico parcial
+                try {
+                    AssetManager::insertImportHistory([
+                        'users_id'      => $usersId,
+                        'entities_id'   => $entityId,
+                        'date_creation' => date('Y-m-d H:i:s'),
+                        'filename'      => $filename,
+                        'total_rows'    => count($parsed['rows']),
+                        'importados'    => $importados,
+                        'deletados'     => $deletadosCount,
+                        'pulados'       => $pulados,
+                        'is_reverted'   => 0,
+                        'created_ids'   => json_encode($createdIdsPerType, JSON_UNESCAPED_UNICODE),
+                        'deleted_ids'   => json_encode($deletedIdsPerType, JSON_UNESCAPED_UNICODE),
+                        'blanks_info'   => json_encode($blanksInfoResp, JSON_UNESCAPED_UNICODE),
+                        'errors'        => json_encode($erros, JSON_UNESCAPED_UNICODE),
+                    ]);
+                } catch (\Throwable $e) {}
                 $flat = array_map(fn($e) => 'Linha ' . $e['linha'] . ': ' . $e['motivo'], $erros);
                 return new JsonResponse([
                     'success'    => false,
                     'total'      => count($parsed['rows']),
                     'importados' => $importados,
+                    'deletados'  => $deletadosCount,
                     'pulados'    => $pulados,
                     'erros'      => $erros,
                     'errors'     => $flat,
-                    'allow_empty' => $allowEmpty,
-                    'blanks_info' => $sheetBlankPerType, // simplificado
+                    'allow_empty' => true,
+                    'blanks_info' => $blanksInfoResp,
+                    'created_ids' => $createdIdsPerType,
+                    'deleted_ids' => $deletedIdsPerType,
                 ]);
             }
 
             $DB->commit();
 
-            // Monta blanks_info para resposta de sucesso
             $blanksInfoResp = [];
             foreach ($sheetBlankPerType as $tipo => $sheetCnt) {
                 $blanksInfoResp[$tipo] = [
                     'sheet'   => $sheetCnt,
                     'db'      => $dbBlankPerType[$tipo] ?? 0,
                     'allowed' => $allowedPerType[$tipo] ?? 0,
+                    'to_delete' => $toDeletePerType[$tipo] ?? 0,
+                    'skipped' => $sheetCnt - ($allowedPerType[$tipo] ?? 0),
                 ];
             }
+
+            $importId = 0;
+            try {
+                $importId = AssetManager::insertImportHistory([
+                    'users_id'      => $usersId,
+                    'entities_id'   => $entityId,
+                    'date_creation' => date('Y-m-d H:i:s'),
+                    'filename'      => $filename,
+                    'total_rows'    => count($parsed['rows']),
+                    'importados'    => $importados,
+                    'deletados'     => $deletadosCount,
+                    'pulados'       => $pulados,
+                    'is_reverted'   => 0,
+                    'created_ids'   => json_encode($createdIdsPerType, JSON_UNESCAPED_UNICODE),
+                    'deleted_ids'   => json_encode($deletedIdsPerType, JSON_UNESCAPED_UNICODE),
+                    'blanks_info'   => json_encode($blanksInfoResp, JSON_UNESCAPED_UNICODE),
+                    'errors'        => json_encode($erros, JSON_UNESCAPED_UNICODE),
+                ]);
+            } catch (\Throwable $e) {}
 
             return new JsonResponse([
                 'success'    => true,
                 'total'      => count($parsed['rows']),
                 'importados' => $importados,
+                'deletados'  => $deletadosCount,
                 'pulados'    => $pulados,
                 'erros'      => $erros,
-                'allow_empty' => $allowEmpty,
+                'allow_empty' => true,
                 'blanks_info' => $blanksInfoResp,
+                'created_ids' => $createdIdsPerType,
+                'deleted_ids' => $deletedIdsPerType,
+                'import_id'  => $importId,
             ]);
         } catch (\Throwable $e) {
             if (method_exists($DB, 'inTransaction') && $DB->inTransaction()) {

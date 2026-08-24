@@ -537,10 +537,6 @@ function initImportXlsx() {
             var html = '<button type="button" id="ca-import-preview-btn" style="padding:8px 14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Validar antes</button>'
                 + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ca-import-update" style="accent-color:#f59e0b;"> Atualizar se já existe</label>'
                 + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;">Se duplicado: <select id="ca-import-dup" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="skip" selected>Pular duplicado</option><option value="abort">Parar tudo</option></select></label>';
-            // Se o checkbox de permitir branco nao foi renderizado pelo PHP, injeta via JS como fallback
-            if (!document.getElementById('ca-import-allow-empty')) {
-                html += '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;background:#fffbeb;border:1px solid #fde68a;padding:4px 8px;border-radius:6px;"><input type="checkbox" id="ca-import-allow-empty" style="accent-color:#f59e0b;"> Permitir série em branco</label>';
-            }
             opts.innerHTML = html;
             importSection.parentNode.insertBefore(opts, importSection.nextSibling);
             var previewBtn = document.getElementById('ca-import-preview-btn');
@@ -548,6 +544,8 @@ function initImportXlsx() {
                 previewBtn.addEventListener('click', function () { doImport(true); });
             }
         }
+        // Inicializa area de revert
+        initRevertArea();
     }
 
     function doImport(isPreview) {
@@ -559,10 +557,9 @@ function initImportXlsx() {
         }
         var dupSel = document.getElementById('ca-import-dup');
         var updChk = document.getElementById('ca-import-update');
-        var allowEmptyChk = document.getElementById('ca-import-allow-empty');
         var onDup = dupSel ? dupSel.value : 'skip';
         var doUpd = updChk && updChk.checked ? '1' : '0';
-        var allowEmpty = allowEmptyChk && allowEmptyChk.checked ? '1' : '0';
+        var allowEmpty = '1';
         btn.disabled = true;
         var previewBtn = document.getElementById('ca-import-preview-btn');
         if (previewBtn) previewBtn.disabled = true;
@@ -600,17 +597,17 @@ function initImportXlsx() {
             if (!keys.length) return '';
             var rows = keys.map(function (k) {
                 var v = info[k];
-                // suporta formatos: {sheet,db,allowed} ou numerico simples
                 if (v && typeof v === 'object') {
                     var sheet = v.sheet != null ? v.sheet : '-';
                     var db = v.db != null ? v.db : '-';
                     var allowed = v.allowed != null ? v.allowed : (v.sheet != null && v.db != null ? Math.max(0, v.sheet - v.db) : '-');
+                    var toDelete = v.to_delete != null ? v.to_delete : (v.need_delete != null ? v.need_delete : (v.toDelete != null ? v.toDelete : (v.deleted != null ? v.deleted : 0)));
                     var skipped = v.skipped != null ? v.skipped : (sheet !== '-' && allowed !== '-' ? (sheet - allowed) : 0);
-                    return '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;">' + k + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + sheet + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + db + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:700;">' + allowed + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + skipped + '</td></tr>';
+                    return '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;">' + k + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + sheet + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + db + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:700;color:#16a34a;">' + allowed + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:700;color:#dc2626;">' + toDelete + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;">' + skipped + '</td></tr>';
                 }
-                return '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;">' + k + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;" colspan="4">' + v + '</td></tr>';
+                return '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;">' + k + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;" colspan="5">' + v + '</td></tr>';
             }).join('');
-            return '<div class="ca-msg" style="background:#fffbeb;border:1px solid #fde68a;color:#78350f;display:block;"><strong>Detalhe série em branco por categoria:</strong><table style="width:100%;margin-top:8px;border-collapse:collapse;font-size:.78rem;"><thead><tr style="background:#fef3c7;"><th style="padding:4px 8px;border:1px solid #e2e8f0;text-align:left;">Categoria</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Na planilha</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Já no GLPI</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Vai cadastrar</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Ignorados</th></tr></thead><tbody>' + rows + '</tbody></table><div style="font-size:.72rem;color:#92400e;margin-top:6px;">Cálculo: vai cadastrar = max(0, na planilha - já no GLPI). Só aplicado quando "Permitir série em branco" está marcado; senão, todos em branco são ignorados.</div></div>';
+            return '<div class="ca-msg" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d;display:block;"><strong>Detalhe sincronização em branco por categoria:</strong><table style="width:100%;margin-top:8px;border-collapse:collapse;font-size:.78rem;"><thead><tr style="background:#dcfce7;"><th style="padding:4px 8px;border:1px solid #e2e8f0;text-align:left;">Categoria</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Na planilha</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Já no GLPI</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Vai cadastrar</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Vai apagar</th><th style="padding:4px 8px;border:1px solid #e2e8f0;">Ignorados</th></tr></thead><tbody>' + rows + '</tbody></table><div style="font-size:.72rem;color:#15803d;margin-top:6px;">Sincronização automática: vai cadastrar = max(0, planilha - GLPI) e vai apagar = max(0, GLPI - planilha). Ex: GLPI 10 + planilha 14 = +4; GLPI 14 + planilha 10 = apaga 4.</div></div>';
         }
         xhr.onload = function () {
             btn.disabled = false;
@@ -621,19 +618,25 @@ function initImportXlsx() {
             try {
                 var resp = JSON.parse(xhr.responseText);
                 if (!resp.success) {
-                    mostrarImportResult(resp.errors || ['Erro ao processar o arquivo.'], null, 0, resp.pulados);
-                    if (resp.erros) mostrarImportResult(resp.erros, resp.importados, resp.total, resp.pulados);
-                    // mesmo com erro, mostra detalhe de brancos se houver
+                    mostrarImportResult(resp.errors || ['Erro ao processar o arquivo.'], null, 0, resp.pulados, resp.deletados);
+                    if (resp.erros) mostrarImportResult(resp.erros, resp.importados, resp.total, resp.pulados, resp.deletados);
                     if (resp.blanks_info || resp.sheet_blank_per_type) {
                         var info = resp.blanks_info || resp.sheet_blank_per_type;
                         var html = renderBlanksInfo(info);
                         if (html && result) { var d=document.createElement('div'); d.innerHTML=html; result.appendChild(d.firstChild); }
                     }
+                    if (resp.deletados && resp.deletados > 0 && result) {
+                        var delInfo=document.createElement('div');
+                        delInfo.className='ca-msg';
+                        delInfo.style.cssText='background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;margin-top:8px;';
+                        delInfo.innerHTML='🗑️ ' + resp.deletados + ' ativo(s) em branco apagado(s) para sincronizar.';
+                        result.appendChild(delInfo);
+                    }
                     return;
                 }
                 if (resp.preview) {
-                    var msg = resp.erros && resp.erros.length ? 'Prévia: ' + resp.erros.length + ' erro(s) encontrados' : 'Prévia OK: ' + resp.importados + ' pronto(s) pra importar';
-                    mostrarImportResult(resp.erros || [], resp.importados, resp.total, resp.pulados);
+                    var msg = resp.erros && resp.erros.length ? 'Prévia: ' + resp.erros.length + ' erro(s) encontrados' : 'Prévia OK: ' + resp.importados + ' pronto(s) pra importar' + (resp.deletados ? ' e ' + resp.deletados + ' para apagar' : '');
+                    mostrarImportResult(resp.erros || [], resp.importados, resp.total, resp.pulados, resp.deletados);
                     if (result) {
                         var extra = document.createElement('div');
                         extra.className = 'ca-msg ' + (resp.erros && resp.erros.length ? 'error' : 'success');
@@ -647,23 +650,22 @@ function initImportXlsx() {
                             var h2 = renderBlanksInfo(resp.sheet_blank_per_type);
                             if (h2) { var tmp2=document.createElement('div'); tmp2.innerHTML=h2; result.appendChild(tmp2.firstChild); }
                         }
-                        if (resp.allow_empty === false && resp.blanks_info && Object.keys(resp.blanks_info).length) {
-                            var warn=document.createElement('div');
-                            warn.className='ca-msg';
-                            warn.style.cssText='background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;margin-top:8px;';
-                            warn.innerHTML='⚠️ Série em branco DESMARCADO: linhas com número em branco foram ignoradas. Marque "Permitir cadastro com número de série em branco" para cadastrar a diferença.';
-                            result.appendChild(warn);
-                        }
                     }
                     return;
                 }
-                mostrarImportResult(resp.erros || [], resp.importados, resp.total, resp.pulados);
+                mostrarImportResult(resp.erros || [], resp.importados, resp.total, resp.pulados, resp.deletados);
                 if (result && resp.blanks_info) {
                     var hh = renderBlanksInfo(resp.blanks_info);
                     if (hh) { var t=document.createElement('div'); t.innerHTML=hh; result.appendChild(t.firstChild); }
-                } else if (result && resp.pulados) {
-                    // se nao tem blanks_info mas teve pulados, já mostrado no header, nada extra
                 }
+                if (result && resp.deletados && resp.deletados > 0) {
+                    var delOk=document.createElement('div');
+                    delOk.className='ca-msg';
+                    delOk.style.cssText='background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;margin-top:8px;';
+                    delOk.innerHTML='🗑️ ' + resp.deletados + ' ativo(s) em branco removido(s) do GLPI para bater a diferença com a planilha.';
+                    result.appendChild(delOk);
+                }
+                refreshRevertArea();
             } catch (e) {
                 mostrarImportResult(['Resposta invalida do servidor.'], null, 0);
             }
@@ -682,17 +684,21 @@ function initImportXlsx() {
         btn.addEventListener('click', function () { doImport(false); });
     }
 
-    function mostrarImportResult(erros, importados, total, pulados) {
+    function mostrarImportResult(erros, importados, total, pulados, deletados) {
         if (!result) return;
         var html = '';
         if (typeof importados === 'number') {
             var plural = importados !== 1 ? 's' : '';
             var puladosTxt = (typeof pulados === 'number' && pulados > 0) ? ' (' + pulados + ' pulado' + (pulados!==1?'s':'') + ')' : '';
+            var deletadosTxt = (typeof deletados === 'number' && deletados > 0) ? ' <span style="color:#dc2626;font-weight:700;">| ' + deletados + ' apagado(s)</span>' : '';
             html += '<div class="ca-msg success"><i class="fas fa-check-circle" style="flex-shrink:0;margin-top:2px;"></i>'
                 + '<div><strong>Importacao concluida!</strong><br>' + importados + ' de ' + total + ' ativo' + plural
-                + ' cadastrado' + plural + ' com sucesso.' + puladosTxt + '</div></div>';
+                + ' cadastrado' + plural + ' com sucesso.' + puladosTxt + deletadosTxt + '</div></div>';
         } else if (typeof pulados === 'number' && pulados > 0) {
             html += '<div class="ca-msg" style="background:#fef3c7;border:1px solid #fcd34d;color:#78350f;"><i class="fas fa-info-circle"></i> ' + pulados + ' linha(s) pulada(s) (duplicadas ou série em branco ignorada).</div>';
+        }
+        if (typeof deletados === 'number' && deletados > 0 && typeof importados !== 'number') {
+            html += '<div class="ca-msg" style="background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;"><i class="fas fa-trash"></i> ' + deletados + ' ativo(s) em branco apagado(s) para sincronizar com a planilha.</div>';
         }
         if (erros && erros.length) {
             var items = erros.map(function (e) {
@@ -707,6 +713,174 @@ function initImportXlsx() {
                 + '<span>Nenhum registro encontrado no arquivo.</span></div>';
         }
         result.innerHTML = html;
+    }
+
+    // === Revert: ultima implantacao ===
+    var lastImportData = null;
+    function getRevertEls() {
+        return {
+            area: document.getElementById('ca-revert-area'),
+            btn: document.getElementById('ca-revert-btn'),
+            info: document.getElementById('ca-revert-info'),
+            result: document.getElementById('ca-revert-result')
+        };
+    }
+    function initRevertArea() {
+        var els = getRevertEls();
+        if (!els.btn || els.btn._caRevertInited) return;
+        els.btn._caRevertInited = true;
+        els.btn.addEventListener('click', function () {
+            if (!lastImportData) {
+                refreshRevertArea(function () {
+                    if (lastImportData) abrirModalRevert1(lastImportData);
+                });
+                return;
+            }
+            abrirModalRevert1(lastImportData);
+        });
+        refreshRevertArea();
+    }
+    window.refreshRevertArea = refreshRevertArea;
+    function refreshRevertArea(cb) {
+        var els = getRevertEls();
+        if (!els.area) { if (cb) cb(); return; }
+        fetch(cfg.ajaxBase + 'UltimaImportacao', { credentials: 'same-origin', headers: getAjaxHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (resp) {
+                if (resp.success && resp.has_import && resp.import) {
+                    lastImportData = resp.import;
+                    els.area.style.display = 'flex';
+                    var d = lastImportData.date_creation || '';
+                    var f = lastImportData.filename || '';
+                    var imp = lastImportData.importados != null ? lastImportData.importados : lastImportData.created_count;
+                    var del = lastImportData.deletados != null ? lastImportData.deletados : lastImportData.deleted_count;
+                    var txt = 'Última implantação: <strong>' + d + '</strong> — ' + imp + ' criado(s), ' + del + ' apagado(s)';
+                    if (f) txt += ' <span style="opacity:.7;">(' + f + ')</span>';
+                    if (els.info) els.info.innerHTML = txt;
+                    if (els.btn) els.btn.style.display = 'inline-flex';
+                } else {
+                    lastImportData = null;
+                    els.area.style.display = 'none';
+                    if (els.info) els.info.innerHTML = '';
+                }
+                if (cb) cb();
+            })
+            .catch(function () {
+                if (cb) cb();
+            });
+    }
+    function criarOverlayRevert() {
+        var overlay = document.createElement('div');
+        overlay.id = 'ca-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:1060;';
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+    function abrirModalRevert1(data) {
+        var overlay = criarOverlayRevert();
+        var imp = data.importados != null ? data.importados : data.created_count;
+        var del = data.deletados != null ? data.deletados : data.deleted_count;
+        overlay.innerHTML = '<div id="ca-modal" style="width:520px;max-width:calc(100vw - 24px);background:#fff;border-radius:14px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.3);">'
+            + '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;"><div style="width:40px;height:40px;border-radius:10px;background:#fef2f2;display:flex;align-items:center;justify-content:center;color:#dc2626;font-size:1.1rem;flex-shrink:0;"><i class="fas fa-exclamation-triangle"></i></div>'
+            + '<div><h3 style="margin:0 0 6px;font-size:1rem;color:#0f172a;">Reverter última implantação?</h3>'
+            + '<p style="margin:0;font-size:.84rem;color:#475569;line-height:1.5;">Você está prestes a <strong style="color:#dc2626;">reverter TUDO</strong> da sua última implantação nesta entidade.<br>'
+            + '<span style="display:inline-block;margin-top:8px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:.82rem;">'
+            + '<strong>' + imp + '</strong> ativo(s) criado(s) serão <strong>apagados</strong> e <strong>' + del + '</strong> ativo(s) apagado(s) serão <strong>restaurados</strong>.<br>'
+            + '<span style="font-size:.76rem;color:#64748b;">Arquivo: ' + (data.filename || '-') + ' — ' + (data.date_creation || '-') + '</span></span></p></div></div>'
+            + '<p style="font-size:.78rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:8px;margin:0;"><i class="fas fa-info-circle"></i> Esta ação afeta apenas a <strong>diferença de série em branco + importados</strong> da ÚLTIMA implantação feita por você nesta entidade.</p>'
+            + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">'
+            + '<button type="button" class="ca-modal-cancel" style="padding:9px 16px;border-radius:8px;background:#f1f5f9;color:#475569;border:none;font-weight:700;cursor:pointer;">Cancelar</button>'
+            + '<button type="button" class="ca-modal-save" style="padding:9px 16px;border-radius:8px;background:#f59e0b;color:#fff;border:none;font-weight:700;cursor:pointer;">Continuar &raquo;</button>'
+            + '</div></div>';
+        var btnCancel = overlay.querySelector('.ca-modal-cancel');
+        var btnCont = overlay.querySelector('.ca-modal-save');
+        function fechar(){ overlay.remove(); }
+        btnCancel.addEventListener('click', fechar);
+        overlay.addEventListener('click', function(e){ if(e.target===overlay) fechar(); });
+        btnCont.addEventListener('click', function(){ overlay.remove(); abrirModalRevert2(data); });
+    }
+    function abrirModalRevert2(data) {
+        var overlay = criarOverlayRevert();
+        overlay.innerHTML = '<div id="ca-modal" style="width:520px;max-width:calc(100vw - 24px);background:#fff;border-radius:14px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.3);">'
+            + '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;"><div style="width:40px;height:40px;border-radius:10px;background:#dc2626;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;flex-shrink:0;"><i class="fas fa-undo"></i></div>'
+            + '<div><h3 style="margin:0 0 6px;font-size:1rem;color:#991b1b;">Confirmação final — tem certeza?</h3>'
+            + '<p style="margin:0;font-size:.84rem;color:#475569;line-height:1.5;">Esta é a <strong>segunda confirmação</strong>. Ao confirmar, <strong>TODOS</strong> os ativos da última implantação serão revertidos imediatamente e não há desfazer automático.<br>'
+            + '<span style="display:block;margin-top:8px;font-weight:700;color:#dc2626;">Digite REVERTER para habilitar o botão se necessário, ou apenas confirme.</span></p></div></div>'
+            + '<div style="margin-top:10px;"><input type="text" id="ca-revert-confirm-input" placeholder="Digite REVERTER para confirmar" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.86rem;outline:none;">'
+            + '<div id="ca-revert-err" style="font-size:.76rem;color:#dc2626;margin-top:6px;min-height:1em;"></div></div>'
+            + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">'
+            + '<button type="button" class="ca-modal-cancel" style="padding:9px 16px;border-radius:8px;background:#f1f5f9;color:#475569;border:none;font-weight:700;cursor:pointer;">Cancelar</button>'
+            + '<button type="button" class="ca-modal-save" id="ca-revert-final-btn" style="padding:9px 16px;border-radius:8px;background:#dc2626;color:#fff;border:none;font-weight:700;cursor:pointer;opacity:.6;" disabled><i class="fas fa-undo"></i> SIM, REVERTER TUDO</button>'
+            + '</div></div>';
+        var btnCancel = overlay.querySelector('.ca-modal-cancel');
+        var btnFinal = overlay.querySelector('#ca-revert-final-btn');
+        var input = overlay.querySelector('#ca-revert-confirm-input');
+        var errEl = overlay.querySelector('#ca-revert-err');
+        var allowByTyping = false;
+        // Se quiser exigir digitar REVERTER, habilita só quando digitar. Senão, habilita após 1.2s como "leitura". Aqui exigimos digitar.
+        // Para flexibilizar: habilita também se usuário apenas clicar após ver o aviso, mas vamos exigir digitar REVERTER ou clicar 2x: vamos habilitar após digitar OU após 1 segundo permitir clique com segundo confirm nativo.
+        // Implementação: habilita quando input == REVERTER (case-insensitive) ou após confirmar via confirm() fallback.
+        function updateBtn(){
+            var v = input.value.trim().toUpperCase();
+            if (v === 'REVERTER') {
+                btnFinal.disabled = false;
+                btnFinal.style.opacity = '1';
+                errEl.textContent = '';
+            } else {
+                btnFinal.disabled = true;
+                btnFinal.style.opacity = '.6';
+            }
+        }
+        input.addEventListener('input', updateBtn);
+        input.focus();
+        function fechar(){ overlay.remove(); }
+        btnCancel.addEventListener('click', fechar);
+        overlay.addEventListener('click', function(e){ if(e.target===overlay) fechar(); });
+        btnFinal.addEventListener('click', function(){
+            var v = input.value.trim().toUpperCase();
+            if (v !== 'REVERTER') {
+                errEl.textContent = 'Digite REVERTER para confirmar.';
+                input.focus();
+                return;
+            }
+            overlay.remove();
+            executarRevert(data);
+        });
+        input.addEventListener('keydown', function(e){
+            if(e.key==='Enter' && !btnFinal.disabled) btnFinal.click();
+            if(e.key==='Escape') fechar();
+        });
+    }
+    function executarRevert(data) {
+        var els = getRevertEls();
+        if (els.btn) { els.btn.disabled = true; els.btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Revertendo...'; }
+        if (els.result) els.result.innerHTML = '<div class="ca-msg" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;"><i class="fas fa-spinner fa-spin"></i> Revertendo implantação #' + data.id + ', aguarde...</div>';
+        var fd = new FormData();
+        fd.append('confirm', '1');
+        fd.append('confirm2', '1');
+        fetch(cfg.ajaxBase + 'ReverterImportacao', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: getAjaxHeaders(),
+            body: fd
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+            if (els.btn) { els.btn.disabled = false; els.btn.innerHTML = '<i class="fas fa-undo"></i> Reverter última implantação'; }
+            if (!resp.success) {
+                var msg = (resp.errors || ['Erro ao reverter.']).join(' ');
+                if (els.result) els.result.innerHTML = '<div class="ca-msg error"><i class="fas fa-exclamation-circle"></i><div><strong>Erro:</strong> ' + msg + '</div></div>';
+                return;
+            }
+            if (els.result) els.result.innerHTML = '<div class="ca-msg success" style="background:#dcfce7;border-color:#86efac;color:#14532d;"><i class="fas fa-check-circle"></i><div><strong>Reversão concluída!</strong><br>' + resp.message + '</div></div>';
+            lastImportData = null;
+            refreshRevertArea();
+            // Opcional: limpar resultado de importação e recarregar lista
+        })
+        .catch(function(e){
+            if (els.btn) { els.btn.disabled = false; els.btn.innerHTML = '<i class="fas fa-undo"></i> Reverter última implantação'; }
+            if (els.result) els.result.innerHTML = '<div class="ca-msg error"><i class="fas fa-exclamation-circle"></i> Erro de conexão: ' + (e.message||'') + '</div>';
+        });
     }
 }
 

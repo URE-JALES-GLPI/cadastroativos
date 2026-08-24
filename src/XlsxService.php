@@ -15,6 +15,7 @@ class XlsxService
     public const MAX_FILE_SIZE = 10485760; // 10 MB
 
     public const COLUMNS = [
+        ['key' => 'ciee',              'label' => 'CIEE',                  'required' => false, 'help' => 'Código CIE da escola (ex: 28435). Deve corresponder à entidade selecionada no GLPI — a importação é bloqueada se a CIE da planilha não bater com a entidade atual.'],
         ['key' => 'tipo_ativo',        'label' => 'Tipo de Ativo',         'required' => true,  'help' => 'Celular, Telefones, Notebook, Tablet, Desktop, Switch, Firewall, Rack de Rede, Nobreak, Televisão, Plataforma de Recarga'],
         ['key' => 'numero_inventario', 'label' => 'Numero de Inventario',   'required' => false, 'help' => 'Opcional. Se vazio, sera deixado em branco. Ex: 1, PE06YTF3, 5A5302L6Z'],
         ['key' => 'status',            'label' => 'Status',                'required' => true,  'help' => 'Nome do status exatamente como cadastrado no GLPI (ex: Em uso, Disponivel).'],
@@ -29,6 +30,45 @@ class XlsxService
         ['key' => 'imei',              'label' => 'IMEI',                  'required' => false, 'help' => 'IMEI do celular (opcional). Prefira celula em formato de texto.'],
         ['key' => 'avaliacao_tecnica', 'label' => 'Avaliacao Tecnica',     'required' => false, 'help' => 'Bom, Desgaste natural, Mau uso, Dano fisico, Obsoleto, Sem avaliacao.'],
         ['key' => 'observacoes',       'label' => 'Observacoes',           'required' => false, 'help' => 'Informacoes adicionais sobre o ativo.'],
+    ];
+
+    // Mapa CIE -> Entidade (fonte: tabela enviada). Usado para validar que a planilha pertence à entidade atual.
+    public const CIE_MAP = [
+        '28435'  => 'EE “Coripheu de Azevedo Marques”',
+        '27259'  => 'EE “José dos Santos”',
+        '30636'  => 'EE Profª Maria Pereira de B. Benetoli',
+        '30624'  => 'EE “João Rodrigues Fernandes”',
+        '27170'  => 'EE de Osvaldo Ramos',
+        '27108'  => 'EE “Baptista Dolci”',
+        '30752'  => 'EE “Profª Vanir Ferrero Moraes”',
+        '27224'  => 'EE “Dom Artur Horsthuis”',
+        '985715' => 'Cel de Jales – EE “Dom Artur Horsthuis”',
+        '27145'  => 'EE “Dr. Euphly Jalles”',
+        '27261'  => 'EE “Prof. Carlos de Arnaldo Silva”',
+        '49700'  => 'EE “Profª Sueli da Silveira Marin Batista”',
+        '27285'  => 'EE “Juvenal Giraldelli”',
+        '906104' => 'EE “Profª Onélia Faggioni Moreira”',
+        '28332'  => 'EE “Antonio Marin Cruz”',
+        '27054'  => 'EE “Adelino Bertani”',
+        '28320'  => 'EE “Profª Maria Pilar Ortega Garcia”',
+        '28344'  => 'EE “Orestes Ferreira de Toledo”',
+        '27194'  => 'EE “Prefeito José Ribeiro”',
+        '27182'  => 'EE “Profª Zélia de Lourdes Zaccarelli Lopes”',
+        '28381'  => 'EE “Rubens de Oliveira Camargo”',
+        '27112'  => 'EE “Carlos Celso Lenarduzzi”',
+        '28393'  => 'EE “Prefeito Antonio Bezerra de Araújo”',
+        '28400'  => 'EE “Professor Itael de Mattos”',
+        '985806' => 'CEL de Santa Fé do Sul',
+        '28289'  => 'EE “Profª Maria das Dores Ferreira Rocha”',
+        '27133'  => 'EE “Francisco Molina Molina”',
+        '28290'  => 'EE “Domingos Donato Rivelli”',
+        '27066'  => 'EE “Oscar Antônio da Costa”',
+        '30582'  => 'EE “Coronel Ernesto Schmidt”',
+        '28319'  => 'EE “Prof. José Joaquim dos Santos”',
+        '27248'  => 'EE “Professor Akio Satoru”',
+        '909993' => 'EE “Profª Elide Apparecida Carlos”',
+        '27212'  => 'EE “José Teixeira do Amaral”',
+        '27169'  => 'EE “José Nogueira de Souza”',
     ];
 
     private static ?array $HEADER_MAP = null;
@@ -120,6 +160,51 @@ class XlsxService
         return null;
     }
 
+    public static function normalizeCie(string $value): string
+    {
+        $v = trim($value);
+        if ($v === '') return '';
+        // Extrai sequência numérica (cobre "28435 - EE ..." ou "CIE 28435")
+        if (preg_match('/\d+/', $v, $m)) {
+            return $m[0];
+        }
+        return $v;
+    }
+
+    public static function getEntityNameByCie(string $cie): ?string
+    {
+        $cie = self::normalizeCie($cie);
+        if ($cie === '') return null;
+        return self::CIE_MAP[$cie] ?? null;
+    }
+
+    public static function getExpectedCieForEntity(string $entityName): ?string
+    {
+        $normNeedle = self::normalize($entityName);
+        if ($normNeedle === '') return null;
+        // 1) match exato normalizado
+        foreach (self::CIE_MAP as $cie => $name) {
+            if (self::normalize($name) === $normNeedle) {
+                return (string) $cie;
+            }
+        }
+        // 2) fallback contém (para variações de pontuação/aspas/CEL)
+        $bestCie = null;
+        $bestLen = 0;
+        foreach (self::CIE_MAP as $cie => $name) {
+            $normMap = self::normalize($name);
+            if ($normMap === '') continue;
+            if (str_contains($normMap, $normNeedle) || str_contains($normNeedle, $normMap)) {
+                $len = strlen($normMap);
+                if ($len > $bestLen) {
+                    $bestLen = $len;
+                    $bestCie = (string) $cie;
+                }
+            }
+        }
+        return $bestCie;
+    }
+
     /**
      * Mapa de cabeçalho: rótulo normalizado (ou coluna) -> chave do campo.
      */
@@ -156,6 +241,18 @@ class XlsxService
                 'marca fabricante'  => 'fabricante',
                 'tipo modelo'       => 'modelo',
                 'modelo'            => 'modelo',
+                'cie'               => 'ciee',
+                'ciee'              => 'ciee',
+                'codigo cie'        => 'ciee',
+                'codigo ciee'       => 'ciee',
+                'cod cie'           => 'ciee',
+                'cod ciee'          => 'ciee',
+                'cie codigo'        => 'ciee',
+                'ciee codigo'       => 'ciee',
+                'entidade cie'      => 'ciee',
+                'cie entidade'      => 'ciee',
+                'escola cie'        => 'ciee',
+                'cie escola'        => 'ciee',
             ];
             foreach ($aliases as $label => $key) {
                 $map[self::normalize($label)] = $key;
@@ -266,10 +363,11 @@ class XlsxService
             // inclui chaves de aliases como serial, categoria etc que sao custom mas validas
             $validKeys['serial'] = true;
             $validKeys['categoria_equipamento'] = true;
+            $validKeys['ciee'] = true;
             foreach ($row as $k => $v) {
                 if (is_string($k) && isset($validKeys[$k])) {
                     $out[$k] = $v;
-                } elseif (is_string($k) && in_array($k, ['ambiente','memoria_ram','armazenamento','tipo_storage','imei','avaliacao_tecnica','observacoes','categoria_equipamento'], true)) {
+                } elseif (is_string($k) && in_array($k, ['ambiente','memoria_ram','armazenamento','tipo_storage','imei','avaliacao_tecnica','observacoes','categoria_equipamento','ciee'], true)) {
                     $out[$k] = $v;
                 }
             }
@@ -756,9 +854,9 @@ class XlsxService
         ]);
 
         $exemplos = [
-            ['Notebook', '1', 'Em uso', 'Dell', 'Notebook', 'Latitude 3420', 'ABC123456', 'Pedagogico', '8 GB', '256 GB', 'SSD', '', 'Bom', 'Nota fiscal 12345'],
-            ['Celular', '2', 'Disponivel', 'Samsung', 'Smartphone', 'Galaxy A14', '358971234567890', 'Administrativo', '4 GB', '128 GB', '', '358971234567890', 'Bom', ''],
-            ['Plataforma de Recarga', '3', 'Disponivel', 'Xiaomi', 'Carregador', '', '', 'Pedagogico', '', '', '', '', 'Sem avaliacao', ''],
+            ['28435', 'Notebook', '1', 'Em uso', 'Dell', 'Notebook', 'Latitude 3420', 'ABC123456', 'Pedagogico', '8 GB', '256 GB', 'SSD', '', 'Bom', 'Nota fiscal 12345'],
+            ['28435', 'Celular', '2', 'Disponivel', 'Samsung', 'Smartphone', 'Galaxy A14', '358971234567890', 'Administrativo', '4 GB', '128 GB', '', '358971234567890', 'Bom', ''],
+            ['28435', 'Plataforma de Recarga', '3', 'Disponivel', 'Xiaomi', 'Carregador', '', '', 'Pedagogico', '', '', '', '', 'Sem avaliacao', ''],
         ];
 
         foreach ($exemplos as $rIdx => $exRow) {
@@ -785,14 +883,17 @@ class XlsxService
         $sheet->getStyle('A1:' . $lastCol . '1')->getBorders()->getAllBorders()
             ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('B45309');
 
-        // Listas suspensas para reduzir erro de digitacao
-        $validacoes = [
-            'A' => '"' . implode(',', array_values(AssetManager::SUPPORTED_TYPES)) . '"',
-            'C' => '"Em uso,Disponivel,Garantia,Descartado,Em manutencao"',
-            'H' => '"Pedagogico,Administrativo"',
-            'K' => '"HD,SSD,HD + SSD"',
-            'M' => '"Bom,Desgaste natural,Mau uso,Dano fisico,Obsoleto,Sem avaliacao"',
-        ];
+        // Listas suspensas para reduzir erro de digitacao (dinamico por chave para suportar insercao de CIEE)
+        $keyToCol = [];
+        foreach (self::COLUMNS as $idx => $col) {
+            $keyToCol[$col['key']] = Coordinate::stringFromColumnIndex($idx + 1);
+        }
+        $validacoes = [];
+        if (isset($keyToCol['tipo_ativo'])) $validacoes[$keyToCol['tipo_ativo']] = '"' . implode(',', array_values(AssetManager::SUPPORTED_TYPES)) . '"';
+        if (isset($keyToCol['status'])) $validacoes[$keyToCol['status']] = '"Em uso,Disponivel,Garantia,Descartado,Em manutencao"';
+        if (isset($keyToCol['ambiente'])) $validacoes[$keyToCol['ambiente']] = '"Pedagogico,Administrativo"';
+        if (isset($keyToCol['tipo_storage'])) $validacoes[$keyToCol['tipo_storage']] = '"HD,SSD,HD + SSD"';
+        if (isset($keyToCol['avaliacao_tecnica'])) $validacoes[$keyToCol['avaliacao_tecnica']] = '"Bom,Desgaste natural,Mau uso,Dano fisico,Obsoleto,Sem avaliacao"';
         foreach ($validacoes as $col => $formula) {
             for ($r = 2; $r <= 1000; $r++) {
                 $validation = $sheet->getCell($col . $r)->getDataValidation();

@@ -66,6 +66,37 @@ final class ImportarXlsxController extends AbstractController
             $entityId = AssetManager::getCurrentEntityId();
             $usersId  = (int) Session::getLoginUserID();
             $filename = $file->getClientOriginalName();
+            $entityNameRaw = \Dropdown::getDropdownName('glpi_entities', $entityId);
+            $entityName = \Html::cleanInputText($entityNameRaw);
+
+            // === Validacao CIE vs entidade atual (se coluna CIEE existir) ===
+            $hasCieeColumn = in_array('ciee', $parsed['headers'] ?? [], true);
+            if ($hasCieeColumn) {
+                $sheetCies = [];
+                foreach ($parsed['rows'] as $r) {
+                    $cieVal = trim((string)($r['ciee'] ?? ''));
+                    if ($cieVal === '') continue;
+                    $cieNorm = XlsxService::normalizeCie($cieVal);
+                    if ($cieNorm !== '') $sheetCies[$cieNorm] = true;
+                }
+                $distinctCies = array_keys($sheetCies);
+                $expectedCie = XlsxService::getExpectedCieForEntity($entityName);
+                if (!empty($distinctCies) && $expectedCie !== null) {
+                    if (count($distinctCies) > 1) {
+                        $lista = implode(', ', $distinctCies);
+                        return new JsonResponse(['success'=>false,'errors'=>["A planilha contém múltiplas CIEs diferentes: $lista. Cada importação deve conter apenas uma CIE (uma entidade)."]], 400);
+                    }
+                    $sheetCie = (string)$distinctCies[0];
+                    if ($sheetCie !== (string)$expectedCie) {
+                        $sheetEntity = XlsxService::getEntityNameByCie($sheetCie) ?? "CIE $sheetCie";
+                        $expectedEntity = XlsxService::getEntityNameByCie($expectedCie) ?? $entityName;
+                        $msg = "Divergência de entidade: você está em \"$entityName\" (CIE $expectedCie), mas a planilha é da entidade \"$sheetEntity\" (CIE $sheetCie). "
+                             . "Acesse a entidade correta no GLPI (selecione \"$sheetEntity\") e tente novamente. "
+                             . "Dica: no topo do GLPI, use o seletor de entidades para mudar para \"$sheetEntity\".";
+                        return new JsonResponse(['success'=>false,'errors'=>[$msg],'expected_cie'=>$expectedCie,'expected_entity'=>$expectedEntity,'sheet_cie'=>$sheetCie,'sheet_entity'=>$sheetEntity,'current_entity'=>$entityName,'current_cie'=>$expectedCie], 400);
+                    }
+                }
+            }
 
             if (!$isPreview) {
                 $DB->beginTransaction();

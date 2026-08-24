@@ -197,7 +197,7 @@ final class CadastroController extends AbstractController
                             <input type="file" id="ca-import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                             <span id="ca-import-filename">Nenhum arquivo selecionado</span>
                         </div>
-                        <button type="button" id="ca-import-btn" class="ca-submit" style="padding:10px 22px;font-size:.84rem;" disabled>
+                        <button type="button" id="ca-import-btn" class="ca-submit" style="padding:10px 22px;font-size:.84rem;">
                             <i class="fas fa-upload"></i> Importar
                         </button>
                     </div>

@@ -489,10 +489,11 @@ function initImportXlsx() {
     }
 
     if (fileInput) {
+        // Botao Importar sempre habilitado: se clicar sem arquivo, abre o seletor (requisito)
+        if (btn) btn.disabled = false;
         fileInput.addEventListener('change', function () {
             var f = fileInput.files && fileInput.files[0];
             if (fileName) fileName.textContent = f ? f.name : 'Nenhum arquivo selecionado';
-            if (btn) btn.disabled = !f;
             if (result) result.innerHTML = '';
         });
         // Arrasta e solta
@@ -735,7 +736,10 @@ function initImportXlsx() {
     if (btn) {
         btn.addEventListener('click', function () {
             var f = fileInput.files && fileInput.files[0];
-            if (!f) return;
+            if (!f) {
+                fileInput.click();
+                return;
+            }
             abrirModalConfirmImport(function() { doImport(false); });
         });
     }

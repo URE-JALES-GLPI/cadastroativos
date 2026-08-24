@@ -79,20 +79,38 @@ final class ImportarXlsxController extends AbstractController
             }
             $distinctCies = array_keys($sheetCies);
             if (!empty($distinctCies)) {
+                if (count($distinctCies) > 1) {
+                    $lista = implode(', ', $distinctCies);
+                    return new JsonResponse(['success'=>false,'errors'=>["A planilha contém múltiplas CIEs diferentes: $lista. Cada importação deve conter apenas uma CIE (uma entidade)."]], 400);
+                }
+                $sheetCie = (string)$distinctCies[0];
+                $sheetEntity = XlsxService::getEntityNameByCie($sheetCie) ?? "CIE $sheetCie";
                 $expectedCie = XlsxService::getExpectedCieForEntity($entityName);
                 if ($expectedCie !== null) {
-                    if (count($distinctCies) > 1) {
-                        $lista = implode(', ', $distinctCies);
-                        return new JsonResponse(['success'=>false,'errors'=>["A planilha contém múltiplas CIEs diferentes: $lista. Cada importação deve conter apenas uma CIE (uma entidade)."]], 400);
-                    }
-                    $sheetCie = (string)$distinctCies[0];
                     if ($sheetCie !== (string)$expectedCie) {
-                        $sheetEntity = XlsxService::getEntityNameByCie($sheetCie) ?? "CIE $sheetCie";
                         $expectedEntity = XlsxService::getEntityNameByCie($expectedCie) ?? $entityName;
                         $msg = "Divergência de entidade: você está em \"$entityName\" (CIE $expectedCie), mas a planilha é da entidade \"$sheetEntity\" (CIE $sheetCie). "
                              . "Acesse a entidade correta no GLPI (selecione \"$sheetEntity\") e tente novamente. "
                              . "Dica: no topo do GLPI, use o seletor de entidades para mudar para \"$sheetEntity\".";
                         return new JsonResponse(['success'=>false,'errors'=>[$msg],'expected_cie'=>$expectedCie,'expected_entity'=>$expectedEntity,'sheet_cie'=>$sheetCie,'sheet_entity'=>$sheetEntity,'current_entity'=>$entityName,'current_cie'=>$expectedCie], 400);
+                    }
+                } else {
+                    // Entidade atual sem CIE mapeado: valida por nome direto apenas se CIE da planilha for conhecido
+                    $sheetEntityRaw = XlsxService::getEntityNameByCie($sheetCie);
+                    if ($sheetEntityRaw !== null) {
+                        $normCurrent = XlsxService::normalize($entityName);
+                        $normSheet = XlsxService::normalize($sheetEntityRaw);
+                        $isMatch = false;
+                        if ($normSheet !== '' && $normCurrent !== '') {
+                            if ($normSheet === $normCurrent || str_contains($normSheet, $normCurrent) || str_contains($normCurrent, $normSheet)) {
+                                $isMatch = true;
+                            }
+                        }
+                        if (!$isMatch) {
+                            $msg = "Divergência de entidade: você está em \"$entityName\" (sem CIE mapeado), mas a planilha é da entidade \"$sheetEntity\" (CIE $sheetCie). "
+                                 . "Acesse a entidade correta no GLPI (selecione \"$sheetEntity\") e tente novamente. ";
+                            return new JsonResponse(['success'=>false,'errors'=>[$msg],'sheet_cie'=>$sheetCie,'sheet_entity'=>$sheetEntity,'current_entity'=>$entityName], 400);
+                        }
                     }
                 }
             }

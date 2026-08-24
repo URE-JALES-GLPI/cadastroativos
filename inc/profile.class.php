@@ -96,7 +96,7 @@ class PluginCadastroativosProfile extends CommonDBTM
     {
         if ($item instanceof Profile && $item->getField('id')) {
             return "<span class='d-inline-flex align-items-center gap-1'>"
-                . "<i class='ti ti-clipboard-list'></i><span>Cadastro de Ativos</span></span>";
+                . "<i class='ti ti-clipboard-list'></i><span>Cadastro de Inventario</span></span>";
         }
         return '';
     }
@@ -118,7 +118,7 @@ class PluginCadastroativosProfile extends CommonDBTM
         echo "<form name='cadastroativos_profile_form' method='post'"
             . " action='" . $CFG_GLPI['root_doc'] . "/plugins/cadastroativos/front/profile.form.php'>";
         echo "<div class='spaced'><table class='tab_cadre_fixehov'>";
-        echo "<tr class='headerRow'><th colspan='2'>Permissoes — Cadastro de Ativos</th></tr>";
+        echo "<tr class='headerRow'><th colspan='2'>Permissoes — Cadastro de Inventario</th></tr>";
 
         // Linha 1: Acesso basico (Celular, Notebook, Tablet, Desktop)
         echo "<tr class='tab_bg_1'><td width='65%'>"

@@ -1,4 +1,4 @@
-/* Cadastro de Ativos — JS v1.7 */
+/* Cadastro de Inventario — JS v1.7 */
 function initCadastro() {
     var grid = document.getElementById('ca-types-grid');
     if (!grid || grid._caInited) return;

@@ -11,7 +11,7 @@ class Menu extends CommonGLPI
 
     public static function getMenuName(int $nb = 0): string
     {
-        return 'Cadastro de Ativos';
+        return 'Cadastro de Inventario';
     }
 
     public static function getIcon(): string

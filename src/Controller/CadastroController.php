@@ -49,7 +49,7 @@ final class CadastroController extends AbstractController
         ];
 
         ob_start();
-        Html::header('Cadastro de Ativos', '/plugins/cadastroativos/Cadastro', 'tools', Menu::class);
+        Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'tools', Menu::class);
 
         // Agrupar tipos por grupo para exibicao
         $grupos = [
@@ -176,7 +176,7 @@ final class CadastroController extends AbstractController
             <div class="ca-header">
                 <div class="ca-header-icon"><i class="fas fa-clipboard-list"></i></div>
                 <div>
-                    <h1>Cadastro de Ativos</h1>
+                    <h1>Cadastro de Inventario</h1>
                     <p><i class="fas fa-building" style="margin-right:4px"></i><?= $entityName ?></p>
                 </div>
             </div>

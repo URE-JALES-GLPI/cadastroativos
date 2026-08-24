@@ -193,14 +193,12 @@ final class CadastroController extends AbstractController
                     <p class="ca-import-desc">Baixe o <strong>modelo</strong>, preencha uma linha por ativo (conforme as instrucoes na segunda aba da planilha) e envie o arquivo para cadastrar varios equipamentos de uma vez.</p>
                     <div class="ca-import-row">
                         <a id="ca-import-modelo" href="#" class="ca-import-modelo"><i class="fas fa-download"></i> Baixar modelo</a>
-                        <div class="ca-import-file">
-                            <input type="file" id="ca-import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-                            <span id="ca-import-filename">Nenhum arquivo selecionado</span>
-                        </div>
                         <button type="button" id="ca-import-btn" class="ca-submit" style="padding:10px 22px;font-size:.84rem;">
                             <i class="fas fa-upload"></i> Importar
                         </button>
                     </div>
+                    <input type="file" id="ca-import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;">
+                    <span id="ca-import-filename" style="display:none;"></span>
                     <div style="margin-top:10px; padding:10px 14px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; font-size:.78rem; color:#14532d; display:flex; align-items:center; gap:8px;">
                         <i class="fas fa-sync-alt" style="color:#16a34a;"></i>
                         <span><strong>Sincronização automática:</strong> itens com série em branco são sincronizados por diferença — se a planilha tiver mais que o GLPI, cadastra a diferença; se tiver menos, apaga o excedente do GLPI para bater a planilha. Ex: 10 Tablets em branco no GLPI + 14 na planilha = cadastra 4; 14 no GLPI e 10 na planilha = apaga 4.</span>

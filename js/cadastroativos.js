@@ -529,37 +529,28 @@ function initImportXlsx() {
                 }
             });
         }
-        // Controles: prévia e duplicados + permitir branco (injetado apenas se nao existe no PHP)
+        // Controles ocultos: sempre atualizar e pular duplicado (invisiveis conforme solicitado) e sem botao Validar
         var importSection = document.querySelector('.ca-import-row');
-        if (importSection && !document.getElementById('ca-import-preview-btn')) {
+        if (importSection && !document.getElementById('ca-import-opts')) {
             var opts = document.createElement('div');
             opts.id = 'ca-import-opts';
-            opts.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:.78rem;color:#475569;';
-            var html = '<button type="button" id="ca-import-preview-btn" style="padding:8px 14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Validar antes</button>'
-                + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="checkbox" id="ca-import-update" style="accent-color:#f59e0b;"> Atualizar se já existe</label>'
-                + '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;">Se duplicado: <select id="ca-import-dup" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="skip" selected>Pular duplicado</option><option value="abort">Parar tudo</option></select></label>';
-            opts.innerHTML = html;
+            opts.style.display = 'none';
+            opts.innerHTML = '<input type="checkbox" id="ca-import-update" checked><select id="ca-import-dup"><option value="skip" selected>Pular duplicado</option></select><button type="button" id="ca-import-preview-btn" style="display:none;"></button>';
             importSection.parentNode.insertBefore(opts, importSection.nextSibling);
-            var previewBtn = document.getElementById('ca-import-preview-btn');
-            if (previewBtn) {
-                previewBtn.addEventListener('click', function () { doImport(true); });
-            }
         }
         // Inicializa area de revert
         initRevertArea();
     }
 
-    function doImport(isPreview) {
-        var f = fileInput.files && fileInput.files[0];
+    function doImport(isPreview, fileOverride) {
+        var f = fileOverride || (fileInput.files && fileInput.files[0]);
         if (!f) return;
         if (!/\.xlsx$/i.test(f.name)) {
             mostrarImportResult(['Somente arquivos .xlsx sao aceitos.'], null, 0);
             return;
         }
-        var dupSel = document.getElementById('ca-import-dup');
-        var updChk = document.getElementById('ca-import-update');
-        var onDup = dupSel ? dupSel.value : 'skip';
-        var doUpd = updChk && updChk.checked ? '1' : '0';
+        var onDup = 'skip';
+        var doUpd = '1';
         var allowEmpty = '1';
         btn.disabled = true;
         var previewBtn = document.getElementById('ca-import-preview-btn');
@@ -687,14 +678,19 @@ function initImportXlsx() {
         var overlay = document.createElement('div');
         overlay.id = 'ca-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:1060;';
-        var fileName = (fileInput.files && fileInput.files[0]) ? fileInput.files[0].name : '';
-        overlay.innerHTML = '<div id="ca-modal" style="width:480px;max-width:calc(100vw - 24px);background:#fff;border-radius:14px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.3);">'
+        overlay.innerHTML = '<div id="ca-modal" style="width:520px;max-width:calc(100vw - 24px);background:#fff;border-radius:14px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.3);">'
             + '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;"><div style="width:42px;height:42px;border-radius:10px;background:#f59e0b;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;flex-shrink:0;"><i class="fas fa-building"></i></div>'
             + '<div><h3 style="margin:0 0 6px;font-size:1.05rem;color:#0f172a;">Confirmar importação</h3>'
-            + '<p style="margin:0;font-size:.86rem;color:#475569;line-height:1.5;">Você está na entidade <strong style="color:#0f172a;">' + entityName + '</strong> <span style="font-size:.78rem;color:#94a3b8;">(ID: ' + entityId + ')</span><br>Arquivo: <strong>' + fileName + '</strong><br><span style="font-size:.78rem;color:#64748b;">Os ativos serão cadastrados/atualizados nesta entidade e a sincronização de série em branco será aplicada.</span></p></div></div>'
+            + '<p style="margin:0;font-size:.86rem;color:#475569;line-height:1.5;">Você está na entidade <strong style="color:#0f172a;">' + entityName + '</strong> <span style="font-size:.78rem;color:#94a3b8;">(ID: ' + entityId + ')</span><br><span style="font-size:.78rem;color:#64748b;">Selecione a planilha .xlsx e confirme. A sincronização de série em branco será aplicada.</span></p></div></div>'
+            + '<div id="ca-modal-file-area" style="padding:14px;border:1.5px dashed #e2e8f0;border-radius:10px;background:#f8fafc;text-align:center;margin-bottom:12px;">'
+            + '<input type="file" id="ca-modal-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;">'
+            + '<button type="button" id="ca-modal-browse" style="padding:9px 16px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;"><i class="fas fa-folder-open"></i> Escolher arquivo .xlsx</button>'
+            + '<div id="ca-modal-filename" style="margin-top:8px;font-size:.84rem;color:#475569;">Nenhum arquivo selecionado</div>'
+            + '<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">Arraste o arquivo aqui também</div>'
+            + '</div>'
             + '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;cursor:pointer;margin:0;">'
             + '<input type="checkbox" id="ca-confirm-entity-chk" style="width:18px;height:18px;accent-color:#f59e0b;margin-top:2px;flex-shrink:0;">'
-            + '<span style="font-size:.84rem;color:#78350f;line-height:1.4;"><strong>Sim, confirmo</strong> que quero importar para a entidade <strong>' + entityName + '</strong> e estou ciente da sincronização automática (vai cadastrar a diferença e vai apagar excedentes em branco).</span>'
+            + '<span style="font-size:.84rem;color:#78350f;line-height:1.4;"><strong>Confirma a importação?</strong> Confirmo que quero importar para a entidade <strong>' + entityName + '</strong> e estou ciente da sincronização automática (vai cadastrar a diferença e vai apagar excedentes em branco).</span>'
             + '</label>'
             + '<div id="ca-confirm-err" style="font-size:.76rem;color:#dc2626;margin-top:8px;min-height:1em;"></div>'
             + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">'
@@ -702,32 +698,71 @@ function initImportXlsx() {
             + '<button type="button" class="ca-modal-save" id="ca-confirm-import-btn" disabled style="padding:9px 16px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;border:none;font-weight:700;cursor:pointer;opacity:.6;"><i class="fas fa-upload"></i> Confirmar importação</button>'
             + '</div></div>';
         document.body.appendChild(overlay);
+        var fileInputModal = overlay.querySelector('#ca-modal-file');
+        var browseBtn = overlay.querySelector('#ca-modal-browse');
+        var fileNameEl = overlay.querySelector('#ca-modal-filename');
+        var fileArea = overlay.querySelector('#ca-modal-file-area');
         var chk = overlay.querySelector('#ca-confirm-entity-chk');
         var btnConfirm = overlay.querySelector('#ca-confirm-import-btn');
         var btnCancel = overlay.querySelector('.ca-modal-cancel');
         var errEl = overlay.querySelector('#ca-confirm-err');
+        var selectedFile = null;
+        function updateConfirmState() {
+            var hasFile = !!selectedFile;
+            var hasCheck = chk.checked;
+            var ok = hasFile && hasCheck;
+            btnConfirm.disabled = !ok;
+            btnConfirm.style.opacity = ok ? '1' : '.6';
+            if (ok) errEl.textContent = '';
+        }
+        function setFile(f) {
+            if (!f) return;
+            if (!/\.xlsx$/i.test(f.name)) {
+                errEl.textContent = 'Somente arquivos .xlsx são aceitos.';
+                return;
+            }
+            selectedFile = f;
+            fileNameEl.textContent = f.name;
+            fileNameEl.style.color = '#0f172a';
+            fileNameEl.style.fontWeight = '600';
+            try {
+                var dt = new DataTransfer();
+                dt.items.add(f);
+                fileInput.files = dt.files;
+                if (fileName) fileName.textContent = f.name;
+            } catch(e) {}
+            updateConfirmState();
+        }
+        browseBtn.addEventListener('click', function(){ fileInputModal.click(); });
+        fileInputModal.addEventListener('change', function(){ var f = fileInputModal.files && fileInputModal.files[0]; if (f) setFile(f); });
+        fileArea.addEventListener('dragover', function(e){ e.preventDefault(); fileArea.style.background='#eff6ff'; fileArea.style.borderColor='#bfdbfe'; });
+        fileArea.addEventListener('dragleave', function(e){ e.preventDefault(); fileArea.style.background='#f8fafc'; fileArea.style.borderColor='#e2e8f0'; });
+        fileArea.addEventListener('drop', function(e){
+            e.preventDefault();
+            fileArea.style.background='#f8fafc'; fileArea.style.borderColor='#e2e8f0';
+            var f = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (f) setFile(f);
+        });
+        if (fileInput.files && fileInput.files[0]) {
+            setFile(fileInput.files[0]);
+        }
         function fechar(){ overlay.remove(); }
         btnCancel.addEventListener('click', fechar);
         overlay.addEventListener('click', function(e){ if(e.target===overlay) fechar(); });
-        chk.addEventListener('change', function(){
-            if (chk.checked) {
-                btnConfirm.disabled = false;
-                btnConfirm.style.opacity = '1';
-                errEl.textContent = '';
-            } else {
-                btnConfirm.disabled = true;
-                btnConfirm.style.opacity = '.6';
-            }
-        });
+        chk.addEventListener('change', updateConfirmState);
         btnConfirm.addEventListener('click', function(){
+            if (!selectedFile) {
+                errEl.textContent = 'Selecione um arquivo .xlsx.';
+                return;
+            }
             if (!chk.checked) {
-                errEl.textContent = 'Marque a caixa para confirmar a entidade.';
+                errEl.textContent = 'Marque a caixa para confirmar a importação.';
                 return;
             }
             overlay.remove();
-            onConfirm();
+            onConfirm(selectedFile);
         });
-        setTimeout(function(){ if(chk) chk.focus(); }, 50);
+        setTimeout(function(){ if(browseBtn) browseBtn.focus(); }, 50);
         overlay.tabIndex = -1;
         overlay.focus();
         overlay.addEventListener('keydown', function(e){ if(e.key==='Escape') fechar(); });
@@ -735,12 +770,7 @@ function initImportXlsx() {
 
     if (btn) {
         btn.addEventListener('click', function () {
-            var f = fileInput.files && fileInput.files[0];
-            if (!f) {
-                fileInput.click();
-                return;
-            }
-            abrirModalConfirmImport(function() { doImport(false); });
+            abrirModalConfirmImport(function(file) { doImport(false, file); });
         });
     }
 

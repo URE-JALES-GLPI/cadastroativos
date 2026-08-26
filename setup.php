@@ -25,8 +25,10 @@ function plugin_init_cadastroativos(): void
 
     // Sempre registra o menu; a visibilidade real e controlada em Menu::canView()/getMenuContent()
     // Evita que o menu suma quando a sessao ainda nao foi recarregada apos edicao de perfil
+    // Registra em 'tools' (central) e 'helpdesk' (simplificada) — PROATI é helpdesk e precisa acessar
     $PLUGIN_HOOKS[Hooks::MENU_TOADD]['cadastroativos'] = [
-        'tools' => Menu::class,
+        'tools'    => Menu::class,
+        'helpdesk' => Menu::class,
     ];
 }
 

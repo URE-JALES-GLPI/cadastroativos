@@ -38,7 +38,7 @@ function plugin_init_cadastroativos(): void
 function plugin_version_cadastroativos(): array
 {
     return [
-        'name'         => 'Cadastro de Inventario',
+        'name'         => '[URE] Cadastro de Inventario',
         'version'      => PLUGIN_CADASTROATIVOS_VERSION,
         'author'       => 'Equipe de TI',
         'license'      => 'GPLv3+',

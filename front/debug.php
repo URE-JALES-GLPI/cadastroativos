@@ -114,7 +114,13 @@ if (isset($_GET['json']) && $_GET['json']==='1') {
     exit;
 }
 
-Html::header('Diagnóstico Cadastro de Inventário', $_SERVER['PHP_SELF'], 'tools', 'GlpiPlugin\\Cadastroativos\\Menu');
+// Header sem checar Menu::canView (evita "Item requisitado não encontrado" para helpdesk)
+try {
+    Html::header('Diagnóstico Cadastro de Inventário', $_SERVER['PHP_SELF'], 'tools', 'computer');
+} catch (Throwable $e) {
+    // fallback sem GLPI header (acesso direto ainda funciona)
+    echo "<html><head><meta charset='utf-8'><title>Diagnóstico</title></head><body style='margin:0; padding:0; background:#f8fafc;'>";
+}
 
 echo "<div style='margin:16px 20px; font-family: sans-serif;'>";
 echo "<h2 style='color:#0f172a;'><i class='ti ti-clipboard-list'></i> Diagnóstico - Cadastro de Inventário</h2>";
@@ -201,4 +207,4 @@ echo "<div style='margin-top:16px; padding:12px; background:#f1f5f9; border-radi
 
 echo "</div>";
 
-Html::footer();
+try { Html::footer(); } catch (Throwable $e) { echo "</body></html>"; }

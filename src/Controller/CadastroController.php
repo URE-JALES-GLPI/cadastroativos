@@ -94,24 +94,18 @@ final class CadastroController extends AbstractController
                 Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'common', 'computer');
             }
         } else {
-            // helpdesk: header mínimo sem checagem de Menu/central
+            // helpdesk: NÃO chama Html::helpHeader (ainda dá 403 para PROATI helpdesk com poucos direitos)
+            // Renderiza header manual mínimo sem checagem de Menu/central — só Menu::canView() acima já validou
             ob_start();
-            // Tenta helpHeader, mas se falhar cai para saída direta sem header GLPI
-            try {
-                Html::helpHeader('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro');
-            } catch (\Throwable $e) {
-                // header manual mínimo — não bloqueia
-                echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Cadastro de Inventario</title>";
-                echo "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-                // GLPI base CSS para não quebrar layout
-                if (isset($CFG_GLPI['root_doc'])) {
-                    $root = $CFG_GLPI['root_doc'];
-                    echo "<link rel='stylesheet' href='$root/lib/base.min.css'>";
-                }
-                echo "</head><body style='margin:0; background:#f8fafc;'>";
-                // Topo simples
-                echo "<div style='background:#fff; border-bottom:1px solid #e2e8f0; padding:10px 20px; font-family:sans-serif; font-size:.9rem; color:#334155;'><a href='{$CFG_GLPI['root_doc']}/front/central.php' style='color:#0f172a; text-decoration:none; font-weight:700;'><i class='ti ti-arrow-left'></i> Voltar</a> <span style='margin-left:12px; color:#64748b;'>Cadastro de Inventario — ".htmlspecialchars($entityName)."</span></div>";
+            echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Cadastro de Inventario</title>";
+            echo "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+            if (isset($CFG_GLPI['root_doc'])) {
+                $root = $CFG_GLPI['root_doc'];
+                echo "<link rel='stylesheet' href='$root/lib/base.min.css'>";
+                echo "<link rel='stylesheet' href='$root/css/palettes/auror.min.css'>";
             }
+            echo "</head><body style='margin:0; background:#f8fafc;'>";
+            echo "<div style='background:#fff; border-bottom:1px solid #e2e8f0; padding:10px 20px; font-family:sans-serif; font-size:.9rem; color:#334155;'><a href='{$CFG_GLPI['root_doc']}/front/central.php' style='color:#0f172a; text-decoration:none; font-weight:700;'><i class='ti ti-arrow-left'></i> Voltar</a> <span style='margin-left:12px; color:#64748b;'>Cadastro de Inventario — ".htmlspecialchars($entityName)."</span></div>";
         }
 
         // Agrupar tipos por grupo para exibicao
@@ -507,10 +501,7 @@ final class CadastroController extends AbstractController
         <?php
 
         if ($isHelpdesk) {
-            // Fecha helpHeader ou header manual
-            try { Html::helpFooter(); } catch (\Throwable $e) {
-                try { Html::footer(); } catch (\Throwable $e2) { echo "</body></html>"; }
-            }
+            echo "</body></html>";
         } else {
             Html::footer();
         }

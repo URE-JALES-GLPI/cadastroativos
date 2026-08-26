@@ -25,6 +25,24 @@ class Menu extends CommonGLPI
             || Session::haveRight('plugin_cadastroativos_infra', READ)
             || Session::haveRight('plugin_cadastroativos_av', READ)
             || Session::haveRight('plugin_cadastroativos_import', READ);
+
+        // Log para debug - sempre registra
+        try {
+            $pid = (int) ($_SESSION['glpiactiveprofile']['id'] ?? 0);
+            $logData = [
+                'time' => date('Y-m-d H:i:s'),
+                'pid' => $pid,
+                'profile' => $_SESSION['glpiactiveprofile']['name'] ?? 'N/A',
+                'haveRight_use' => Session::haveRight('plugin_cadastroativos_use', READ) ? 1 : 0,
+                'haveRight_infra' => Session::haveRight('plugin_cadastroativos_infra', READ) ? 1 : 0,
+                'haveRight_av' => Session::haveRight('plugin_cadastroativos_av', READ) ? 1 : 0,
+                'haveRight_import' => Session::haveRight('plugin_cadastroativos_import', READ) ? 1 : 0,
+                'session_raw' => $_SESSION['glpiactiveprofile'] ?? [],
+                'result_initial' => $has ? 1 : 0,
+            ];
+            @file_put_contents(GLPI_ROOT . '/files/_log/cadastroativos_canview.log', json_encode($logData, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND);
+        } catch (\Throwable $e) {}
+
         if ($has) {
             return true;
         }
@@ -42,12 +60,10 @@ class Menu extends CommonGLPI
         }
 
         // Fallback 2: consulta direta no banco (ignora cache de sessao corrompido)
-        // Garante acesso mesmo se $_SESSION ainda nao foi atualizado ou se houve falha no change_profile
         try {
             global $DB;
             $pid = (int) ($_SESSION['glpiactiveprofile']['id'] ?? 0);
             if ($pid > 0 && $DB && $DB->tableExists('glpi_profilerights')) {
-                // Garante que linhas existam (perfis criados apos install)
                 if (class_exists('PluginCadastroativosProfile')) {
                     \PluginCadastroativosProfile::addDefaultProfileInfos($pid);
                 }
@@ -61,7 +77,6 @@ class Menu extends CommonGLPI
                 ]);
                 foreach ($iter as $r) {
                     if (((int) $r['rights'] & READ) === READ) {
-                        // Corrige sessao para proximas requisicoes
                         if (class_exists('PluginCadastroativosProfile')) {
                             \PluginCadastroativosProfile::changeProfile();
                         }
@@ -69,9 +84,7 @@ class Menu extends CommonGLPI
                     }
                 }
             }
-        } catch (\Throwable $e) {
-            // ignora e retorna false
-        }
+        } catch (\Throwable $e) {}
 
         return false;
     }

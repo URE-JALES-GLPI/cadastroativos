@@ -27,6 +27,40 @@ final class CadastroController extends AbstractController
         Session::checkLoginUser();
 
         if (!Menu::canView()) {
+            // Log detalhado para diagnosticar 403
+            try {
+                global $DB;
+                $pid = (int) ($_SESSION['glpiactiveprofile']['id'] ?? 0);
+                $dbg = [
+                    'pid' => $pid,
+                    'profile' => $_SESSION['glpiactiveprofile']['name'] ?? 'N/A',
+                    'sessionRights' => [
+                        'use' => $_SESSION['glpiactiveprofile']['plugin_cadastroativos_use'] ?? 'NOT SET',
+                        'infra' => $_SESSION['glpiactiveprofile']['plugin_cadastroativos_infra'] ?? 'NOT SET',
+                        'av' => $_SESSION['glpiactiveprofile']['plugin_cadastroativos_av'] ?? 'NOT SET',
+                        'import' => $_SESSION['glpiactiveprofile']['plugin_cadastroativos_import'] ?? 'NOT SET',
+                    ],
+                    'haveRight' => [
+                        'use' => Session::haveRight('plugin_cadastroativos_use', READ) ? 1 : 0,
+                        'infra' => Session::haveRight('plugin_cadastroativos_infra', READ) ? 1 : 0,
+                        'av' => Session::haveRight('plugin_cadastroativos_av', READ) ? 1 : 0,
+                        'import' => Session::haveRight('plugin_cadastroativos_import', READ) ? 1 : 0,
+                    ],
+                ];
+                if ($DB && $DB->tableExists('glpi_profilerights') && $pid > 0) {
+                    $iter = $DB->request([
+                        'SELECT' => ['name', 'rights'],
+                        'FROM'   => 'glpi_profilerights',
+                        'WHERE'  => ['profiles_id' => $pid, 'name' => ['IN', ['plugin_cadastroativos_use','plugin_cadastroativos_infra','plugin_cadastroativos_av','plugin_cadastroativos_import']]],
+                    ]);
+                    foreach ($iter as $r) { $dbg['db_'.$r['name']] = (int)$r['rights']; }
+                }
+                @file_put_contents(GLPI_ROOT.'/files/_log/cadastroativos_403.log', date('Y-m-d H:i:s').' '.json_encode($dbg, JSON_UNESCAPED_UNICODE)."\n", FILE_APPEND);
+                // Se pedir ?debug=1 retorna JSON para facilitar teste sem olhar log
+                if ($request->query->get('debug') === '1') {
+                    return new \Symfony\Component\HttpFoundation\JsonResponse(['success'=>false,'error'=>'Acesso negado - debug',$dbg], 403);
+                }
+            } catch (\Throwable $e) {}
             return new Response('Acesso negado.', 403);
         }
 

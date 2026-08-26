@@ -21,9 +21,20 @@ class Menu extends CommonGLPI
 
     public static function canView(): bool
     {
-        return Session::haveRight('plugin_cadastroativos_use', READ)
+        // Tenta recarregar direitos da sessao se ainda nao estiverem presentes
+        // (cobre caso em que o perfil foi editado e o usuario ainda nao relogou)
+        $has = Session::haveRight('plugin_cadastroativos_use', READ)
             || Session::haveRight('plugin_cadastroativos_infra', READ)
-            || Session::haveRight('plugin_cadastroativos_av', READ);
+            || Session::haveRight('plugin_cadastroativos_av', READ)
+            || Session::haveRight('plugin_cadastroativos_import', READ);
+        if (!$has && class_exists('PluginCadastroativosProfile') && isset($_SESSION['glpiactiveprofile']['id'])) {
+            \PluginCadastroativosProfile::changeProfile();
+            $has = Session::haveRight('plugin_cadastroativos_use', READ)
+                || Session::haveRight('plugin_cadastroativos_infra', READ)
+                || Session::haveRight('plugin_cadastroativos_av', READ)
+                || Session::haveRight('plugin_cadastroativos_import', READ);
+        }
+        return $has;
     }
 
     public static function getMenuContent(): array

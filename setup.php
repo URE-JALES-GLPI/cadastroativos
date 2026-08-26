@@ -23,11 +23,12 @@ function plugin_init_cadastroativos(): void
         'PluginCadastroativosProfile', 'changeProfile',
     ];
 
-    // Menu aparece se usuario tiver qualquer um dos direitos
+    // Menu aparece se usuario tiver qualquer um dos direitos (inclui IMPORT que tambem precisa do Cadastro para importar)
     if (
         Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT, READ) ||
         Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_INFRA, READ) ||
-        Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_AV, READ)
+        Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_AV, READ) ||
+        Session::haveRight(PLUGIN_CADASTROATIVOS_RIGHT_IMPORT, READ)
     ) {
         $PLUGIN_HOOKS[Hooks::MENU_TOADD]['cadastroativos'] = [
             'tools' => Menu::class,

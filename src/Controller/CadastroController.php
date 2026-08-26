@@ -83,7 +83,18 @@ final class CadastroController extends AbstractController
         ];
 
         ob_start();
-        Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'tools', Menu::class);
+        // PROATI usa interface helpdesk — Html::header com 'tools/Menu' bloqueia helpdesk com 403 antes mesmo de Menu::canView
+        // Usa helpHeader para helpdesk e header normal para central, mantendo checagem de permissão apenas via Menu::canView acima
+        try {
+            if (Session::getCurrentInterface() === 'helpdesk') {
+                Html::helpHeader('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro');
+            } else {
+                Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'tools', Menu::class);
+            }
+        } catch (\Throwable $e) {
+            // fallback sem checagem de setor (helpdesk/central)
+            Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'common', 'computer');
+        }
 
         // Agrupar tipos por grupo para exibicao
         $grupos = [

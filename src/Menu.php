@@ -21,20 +21,59 @@ class Menu extends CommonGLPI
 
     public static function canView(): bool
     {
-        // Tenta recarregar direitos da sessao se ainda nao estiverem presentes
-        // (cobre caso em que o perfil foi editado e o usuario ainda nao relogou)
         $has = Session::haveRight('plugin_cadastroativos_use', READ)
             || Session::haveRight('plugin_cadastroativos_infra', READ)
             || Session::haveRight('plugin_cadastroativos_av', READ)
             || Session::haveRight('plugin_cadastroativos_import', READ);
-        if (!$has && class_exists('PluginCadastroativosProfile') && isset($_SESSION['glpiactiveprofile']['id'])) {
+        if ($has) {
+            return true;
+        }
+
+        // Fallback 1: tenta recarregar da sessao (cobre caso perfil editado sem relogar)
+        if (class_exists('PluginCadastroativosProfile') && isset($_SESSION['glpiactiveprofile']['id'])) {
             \PluginCadastroativosProfile::changeProfile();
             $has = Session::haveRight('plugin_cadastroativos_use', READ)
                 || Session::haveRight('plugin_cadastroativos_infra', READ)
                 || Session::haveRight('plugin_cadastroativos_av', READ)
                 || Session::haveRight('plugin_cadastroativos_import', READ);
+            if ($has) {
+                return true;
+            }
         }
-        return $has;
+
+        // Fallback 2: consulta direta no banco (ignora cache de sessao corrompido)
+        // Garante acesso mesmo se $_SESSION ainda nao foi atualizado ou se houve falha no change_profile
+        try {
+            global $DB;
+            $pid = (int) ($_SESSION['glpiactiveprofile']['id'] ?? 0);
+            if ($pid > 0 && $DB && $DB->tableExists('glpi_profilerights')) {
+                // Garante que linhas existam (perfis criados apos install)
+                if (class_exists('PluginCadastroativosProfile')) {
+                    \PluginCadastroativosProfile::addDefaultProfileInfos($pid);
+                }
+                $iter = $DB->request([
+                    'SELECT' => ['name', 'rights'],
+                    'FROM'   => 'glpi_profilerights',
+                    'WHERE'  => [
+                        'profiles_id' => $pid,
+                        'name'        => ['IN', ['plugin_cadastroativos_use', 'plugin_cadastroativos_infra', 'plugin_cadastroativos_av', 'plugin_cadastroativos_import']],
+                    ],
+                ]);
+                foreach ($iter as $r) {
+                    if (((int) $r['rights'] & READ) === READ) {
+                        // Corrige sessao para proximas requisicoes
+                        if (class_exists('PluginCadastroativosProfile')) {
+                            \PluginCadastroativosProfile::changeProfile();
+                        }
+                        return true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignora e retorna false
+        }
+
+        return false;
     }
 
     public static function getMenuContent(): array

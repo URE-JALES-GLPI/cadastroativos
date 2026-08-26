@@ -1,7 +1,11 @@
 <?php
 // Acesso direto sem rota Symfony: http://10.180.152.27/glpi/plugins/cadastroativos/debug_raw.php
+// Alternativa: http://10.180.152.27/glpi/plugins/cadastroativos/front/debug.php (recomendado, tem botão de correção)
 // So precisa estar logado no GLPI
-include('../../inc/includes.php');
+$includes = __DIR__ . '/../../inc/includes.php';
+if (!file_exists($includes)) $includes = __DIR__ . '/../../../inc/includes.php';
+if (!file_exists($includes)) $includes = __DIR__ . '/../../glpi/inc/includes.php';
+include($includes);
 Session::checkLoginUser();
 global $DB;
 $pid = (int) ($_SESSION['glpiactiveprofile']['id'] ?? 0);

@@ -113,6 +113,16 @@ final class ImportarXlsxController extends AbstractController
                                 $isMatch = true;
                             }
                         }
+                        // Fallback tolerante: ignora 'de','da', e prefixo "URE >"
+                        if (!$isMatch) {
+                            $normCurrentEnt = XlsxService::normalizeEntityName($entityName);
+                            $normSheetEnt = XlsxService::normalizeEntityName($sheetEntityRaw);
+                            if ($normSheetEnt !== '' && $normCurrentEnt !== '') {
+                                if ($normSheetEnt === $normCurrentEnt || str_contains($normSheetEnt, $normCurrentEnt) || str_contains($normCurrentEnt, $normSheetEnt)) {
+                                    $isMatch = true;
+                                }
+                            }
+                        }
                         if (!$isMatch) {
                             $msg = "🏫 <strong>Entidade errada!</strong> Você está em <strong>\"$entityName\"</strong> (sem CIE mapeado), mas a planilha é da <strong>\"$sheetEntity\"</strong> (CIE $sheetCie).<br>"
                                  . "<span style=\"display:inline-block;margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:.84rem;\">"

@@ -38,7 +38,7 @@ class XlsxService
         '27259'  => 'EE “José dos Santos”',
         '30636'  => 'EE Profª Maria Pereira de B. Benetoli',
         '30624'  => 'EE “João Rodrigues Fernandes”',
-        '27170'  => 'EE de Osvaldo Ramos',
+        '27170'  => 'EE "Osvaldo Ramos"',
         '27108'  => 'EE “Baptista Dolci”',
         '30752'  => 'EE “Profª Vanir Ferrero Moraes”',
         '27224'  => 'EE “Dom Artur Horsthuis”',
@@ -81,6 +81,35 @@ class XlsxService
             $v = mb_strtolower(trim($value));
         }
         return preg_replace('/[^a-z0-9]/', '', $v);
+    }
+
+    /**
+     * Normaliza nome de entidade para comparação tolerante:
+     * - extrai segmento após '>' (completename GLPI),
+     * - remove acentos, pontuação, ignora stopwords 'de','da','do', etc.
+     * Usado para casar "EE de Osvaldo Ramos" == "EE \"Osvaldo Ramos\"" e hierarquia "URE > EE ..."
+     */
+    public static function normalizeEntityName(string $value): string
+    {
+        $v = mb_strtolower(trim($value));
+        if ($v === '') return '';
+        // Extrai nome curto se for completename "Pai > Filho"
+        if (str_contains($v, '>')) {
+            $parts = explode('>', $v);
+            $v = trim(end($parts));
+        }
+        $trans = iconv('UTF-8', 'ASCII//TRANSLIT', $v);
+        if ($trans !== false) {
+            $v = $trans;
+        }
+        // Troca tudo que não é alfanumérico por espaço para separar tokens
+        $v = preg_replace('/[^a-z0-9]+/', ' ', $v);
+        $v = trim($v);
+        if ($v === '') return '';
+        $stop = ['de','da','do','das','dos','e','a','o','as','os','del','la','el'];
+        $tokens = explode(' ', $v);
+        $tokens = array_filter($tokens, fn($t) => $t !== '' && !in_array($t, $stop, true));
+        return implode('', $tokens);
     }
 
     public static function cellString(mixed $value): string
@@ -182,10 +211,25 @@ class XlsxService
     {
         $normNeedle = self::normalize($entityName);
         if ($normNeedle === '') return null;
-        // 1) match exato normalizado
+        // 1) match exato normalizado (compatibilidade)
         foreach (self::CIE_MAP as $cie => $name) {
             if (self::normalize($name) === $normNeedle) {
                 return (string) $cie;
+            }
+        }
+        // 1b) match exato tolerante (ignora 'de','da', completename "Pai > Filho")
+        $normEntity = self::normalizeEntityName($entityName);
+        if ($normEntity !== '' && $normEntity !== $normNeedle) {
+            foreach (self::CIE_MAP as $cie => $name) {
+                if (self::normalizeEntityName($name) === $normEntity) {
+                    return (string) $cie;
+                }
+            }
+            // Também compara normEntity vs normalize original do mapa para cobrir casos mistos
+            foreach (self::CIE_MAP as $cie => $name) {
+                if (self::normalize($name) === $normEntity) {
+                    return (string) $cie;
+                }
             }
         }
         // 2) fallback contém (para variações de pontuação/aspas/CEL)
@@ -202,7 +246,27 @@ class XlsxService
                 }
             }
         }
-        return $bestCie;
+        if ($bestCie !== null) {
+            return $bestCie;
+        }
+        // 2b) fallback contém tolerante (resolve "EE de Osvaldo Ramos" vs "EE \"Osvaldo Ramos\"" e hierarquia)
+        if ($normEntity !== '') {
+            $bestCie = null;
+            $bestLen = 0;
+            foreach (self::CIE_MAP as $cie => $name) {
+                $normMapEnt = self::normalizeEntityName($name);
+                if ($normMapEnt === '') continue;
+                if (str_contains($normMapEnt, $normEntity) || str_contains($normEntity, $normMapEnt)) {
+                    $len = strlen($normMapEnt);
+                    if ($len > $bestLen) {
+                        $bestLen = $len;
+                        $bestCie = (string) $cie;
+                    }
+                }
+            }
+            return $bestCie;
+        }
+        return null;
     }
 
     /**

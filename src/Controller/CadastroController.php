@@ -3,6 +3,8 @@
 namespace GlpiPlugin\Cadastroativos\Controller;
 
 use Glpi\Controller\AbstractController;
+use Glpi\Http\Firewall;
+use Glpi\Security\Attribute\SecurityStrategy;
 use GlpiPlugin\Cadastroativos\AssetManager;
 use GlpiPlugin\Cadastroativos\Menu;
 use Html;
@@ -16,6 +18,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class CadastroController extends AbstractController
 {
+    #[SecurityStrategy(Firewall::STRATEGY_AUTHENTICATED)]
     #[Route('/Cadastro', name: 'cadastroativos_cadastro', methods: ['GET'])]
     public function __invoke(Request $request): Response
     {
@@ -83,29 +86,19 @@ final class CadastroController extends AbstractController
         ];
 
         $isHelpdesk = Session::getCurrentInterface() === 'helpdesk';
-        // Para helpdesk, Html::header('tools', Menu) e Html::helpHeader ainda dão 403 para PROATI helpdesk
-        // mesmo com Menu::canView() = YES. Solução: para helpdesk não usa Html::header com checagem de setor,
-        // renderiza a página sem depender do header do GLPI (evita "Você não tem permissão").
-        if (!$isHelpdesk) {
-            ob_start();
-            try {
+        // O 403 que o Html::header() dava aqui era, na verdade, o Firewall do GLPI 11 barrando
+        // a rota inteira antes do controller rodar (corrigido com o SecurityStrategy acima).
+        // Por isso já não precisamos mais do header manual: usamos Html::header() tambem no
+        // Simplificado, o que garante jQuery/select2/FontAwesome/Tabler carregados corretamente.
+        ob_start();
+        try {
+            if ($isHelpdesk) {
+                Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'helpdesk', Menu::class);
+            } else {
                 Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'tools', Menu::class);
-            } catch (\Throwable $e) {
-                Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'common', 'computer');
             }
-        } else {
-            // helpdesk: NÃO chama Html::helpHeader (ainda dá 403 para PROATI helpdesk com poucos direitos)
-            // Renderiza header manual mínimo sem checagem de Menu/central — só Menu::canView() acima já validou
-            ob_start();
-            echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Cadastro de Inventario</title>";
-            echo "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-            if (isset($CFG_GLPI['root_doc'])) {
-                $root = $CFG_GLPI['root_doc'];
-                echo "<link rel='stylesheet' href='$root/lib/base.min.css'>";
-                echo "<link rel='stylesheet' href='$root/css/palettes/auror.min.css'>";
-            }
-            echo "</head><body style='margin:0; background:#f8fafc;'>";
-            echo "<div style='background:#fff; border-bottom:1px solid #e2e8f0; padding:10px 20px; font-family:sans-serif; font-size:.9rem; color:#334155;'><a href='{$CFG_GLPI['root_doc']}/front/central.php' style='color:#0f172a; text-decoration:none; font-weight:700;'><i class='ti ti-arrow-left'></i> Voltar</a> <span style='margin-left:12px; color:#64748b;'>Cadastro de Inventario — ".htmlspecialchars($entityName)."</span></div>";
+        } catch (\Throwable $e) {
+            Html::header('Cadastro de Inventario', '/plugins/cadastroativos/Cadastro', 'common', 'computer');
         }
 
         // Agrupar tipos por grupo para exibicao
@@ -500,11 +493,7 @@ final class CadastroController extends AbstractController
         </script>
         <?php
 
-        if ($isHelpdesk) {
-            echo "</body></html>";
-        } else {
-            Html::footer();
-        }
+        Html::footer();
         $html = ob_get_clean();
         return new Response($html);
     }

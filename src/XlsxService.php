@@ -75,9 +75,6 @@ class XlsxService
 
     public static function normalize(string $value): string
     {
-        // Decodifica entidades HTML (Html::cleanInputText usa &gt; &quot; etc)
-        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $value = strip_tags($value);
         $v = mb_strtolower(trim($value));
         $v = iconv('UTF-8', 'ASCII//TRANSLIT', $v);
         if ($v === false) {

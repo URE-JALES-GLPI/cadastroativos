@@ -3,6 +3,8 @@
 namespace GlpiPlugin\Cadastroativos\Controller;
 
 use Glpi\Controller\AbstractController;
+use Glpi\Http\Firewall;
+use Glpi\Security\Attribute\SecurityStrategy;
 use GlpiPlugin\Cadastroativos\AssetManager;
 use GlpiPlugin\Cadastroativos\Menu;
 use Session;
@@ -13,6 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class ReverterImportacaoController extends AbstractController
 {
+    #[SecurityStrategy(Firewall::STRATEGY_AUTHENTICATED)]
     #[Route('/ajax/ReverterImportacao', name: 'cadastroativos_reverter_importacao', methods: ['POST'])]
     public function __invoke(Request $request): Response
     {

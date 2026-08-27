@@ -22,6 +22,8 @@ final class CadastroController extends AbstractController
     #[Route('/Cadastro', name: 'cadastroativos_cadastro', methods: ['GET'])]
     public function __invoke(Request $request): Response
     {
+        global $CFG_GLPI;
+
         $plugin = new \Plugin();
         if (!$plugin->isInstalled('cadastroativos') || !$plugin->isActivated('cadastroativos')) {
             return new Response('Plugin nao encontrado.', 404);
@@ -124,6 +126,9 @@ final class CadastroController extends AbstractController
         #ca-app .ca-header-icon { width:48px; height:48px; background:linear-gradient(135deg,#f59e0b,#fbbf24); border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.3rem; box-shadow:0 4px 12px rgba(245,158,11,.3); flex-shrink:0; }
         #ca-app .ca-header h1 { margin:0 0 3px; font-size:1.4rem; font-weight:700; color:#0f172a; }
         #ca-app .ca-header p { margin:0; font-size:.82rem; color:#64748b; }
+        #ca-app .ca-header-actions { margin-left:auto; flex-shrink:0; }
+        #ca-app .ca-btn-inventario { display:inline-flex; align-items:center; gap:8px; padding:10px 18px; background:#0f172a; color:#fff; border-radius:10px; font-size:.85rem; font-weight:700; text-decoration:none; box-shadow:0 4px 12px rgba(15,23,42,.2); transition:all .18s; }
+        #ca-app .ca-btn-inventario:hover { background:#1e293b; color:#fff; transform:translateY(-1px); box-shadow:0 6px 18px rgba(15,23,42,.3); }
         #ca-app .ca-msg { display:flex; gap:12px; align-items:flex-start; padding:14px 18px; border-radius:10px; margin-bottom:16px; font-size:.88rem; line-height:1.5; }
         #ca-app .ca-msg.success { background:#dcfce7; border:1px solid #86efac; color:#14532d; }
         #ca-app .ca-msg.error   { background:#fee2e2; border:1px solid #fca5a5; color:#7f1d1d; }
@@ -228,6 +233,11 @@ final class CadastroController extends AbstractController
                 <div>
                     <h1>Cadastro de Inventario</h1>
                     <p><i class="fas fa-building" style="margin-right:4px"></i><?= $entityName ?></p>
+                </div>
+                <div class="ca-header-actions">
+                    <a href="<?= Html::cleanInputText(($CFG_GLPI['root_doc'] ?? '') . '/plugins/assetmgrstatus/front/maintenance.php') ?>" class="ca-btn-inventario" target="_blank" rel="noopener">
+                        <i class="fas fa-boxes-stacked"></i> Inventario
+                    </a>
                 </div>
             </div>
 

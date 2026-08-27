@@ -3,6 +3,8 @@
 namespace GlpiPlugin\Cadastroativos\Controller;
 
 use Glpi\Controller\AbstractController;
+use Glpi\Http\Firewall;
+use Glpi\Security\Attribute\SecurityStrategy;
 use GlpiPlugin\Cadastroativos\Menu;
 use GlpiPlugin\Cadastroativos\XlsxService;
 use Session;
@@ -14,6 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class DownloadModeloController extends AbstractController
 {
+    #[SecurityStrategy(Firewall::STRATEGY_AUTHENTICATED)]
     #[Route('/ModeloXlsx', name: 'cadastroativos_modelo_xlsx', methods: ['GET'])]
     public function __invoke(Request $request): Response
     {

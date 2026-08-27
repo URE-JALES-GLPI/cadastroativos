@@ -3,6 +3,8 @@
 namespace GlpiPlugin\Cadastroativos\Controller;
 
 use Glpi\Controller\AbstractController;
+use Glpi\Http\Firewall;
+use Glpi\Security\Attribute\SecurityStrategy;
 use GlpiPlugin\Cadastroativos\AssetManager;
 use Session;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -12,6 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class ListarAtivosController extends AbstractController
 {
+    #[SecurityStrategy(Firewall::STRATEGY_AUTHENTICATED)]
     #[Route('/ajax/ListarAtivos', name: 'cadastroativos_listar', methods: ['GET'])]
     public function __invoke(Request $request): Response
     {

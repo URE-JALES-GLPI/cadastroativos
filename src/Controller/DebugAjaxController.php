@@ -3,6 +3,8 @@
 namespace GlpiPlugin\Cadastroativos\Controller;
 
 use Glpi\Controller\AbstractController;
+use Glpi\Http\Firewall;
+use Glpi\Security\Attribute\SecurityStrategy;
 use Session;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,6 +15,7 @@ final class DebugAjaxController extends AbstractController
 {
     // Rota AJAX — mais confiável que /debug em algumas instalações (cache de rotas)
     // Acesso: /glpi/plugins/cadastroativos/ajax/Debug  ou /glpi/plugins/cadastroativos/ajax/Debug?json=1
+    #[SecurityStrategy(Firewall::STRATEGY_AUTHENTICATED)]
     #[Route('/ajax/Debug', name: 'cadastroativos_debug_ajax', methods: ['GET'])]
     public function __invoke(Request $request): Response
     {

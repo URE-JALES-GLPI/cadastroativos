@@ -3,6 +3,8 @@
 namespace GlpiPlugin\Cadastroativos\Controller;
 
 use Glpi\Controller\AbstractController;
+use Glpi\Http\Firewall;
+use Glpi\Security\Attribute\SecurityStrategy;
 use GlpiPlugin\Cadastroativos\AssetManager;
 use GlpiPlugin\Cadastroativos\Menu;
 use GlpiPlugin\Cadastroativos\XlsxService;
@@ -14,6 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class ImportarXlsxController extends AbstractController
 {
+    #[SecurityStrategy(Firewall::STRATEGY_AUTHENTICATED)]
     #[Route('/ajax/ImportarXlsx', name: 'cadastroativos_importar_xlsx', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {

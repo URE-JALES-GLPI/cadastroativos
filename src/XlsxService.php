@@ -75,6 +75,9 @@ class XlsxService
 
     public static function normalize(string $value): string
     {
+        // Decodifica entidades HTML (Html::cleanInputText usa &gt; &quot; etc)
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = strip_tags($value);
         $v = mb_strtolower(trim($value));
         $v = iconv('UTF-8', 'ASCII//TRANSLIT', $v);
         if ($v === false) {
@@ -91,9 +94,12 @@ class XlsxService
      */
     public static function normalizeEntityName(string $value): string
     {
+        // Decodifica &gt; &quot; etc de Html::cleanInputText antes de comparar
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = strip_tags($value);
         $v = mb_strtolower(trim($value));
         if ($v === '') return '';
-        // Extrai nome curto se for completename "Pai > Filho"
+        // Extrai nome curto se for completename "Pai > Filho" (ou "Pai &gt; Filho" já decodificado)
         if (str_contains($v, '>')) {
             $parts = explode('>', $v);
             $v = trim(end($parts));

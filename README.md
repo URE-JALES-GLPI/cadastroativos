@@ -1,75 +1,32 @@
-# Cadastro e Controle de Ativos
+# Cadastro de Ativos
 
-Plugin desenvolvido para facilitar o **cadastro, organização e gerenciamento de ativos** no GLPI, reunindo todas as informações necessárias para o controle patrimonial e administrativo dos equipamentos.
+> Plugin GLPI para cadastro padronizado e controle patrimonial de equipamentos.
 
-## 📋 Sobre
+## Sobre
 
-Este plugin tem como objetivo simplificar o processo de cadastro de ativos, permitindo registrar informações completas de cada equipamento em um único local.
+O **Cadastro de Ativos** simplifica o inventário dentro do GLPI, reunindo em um único local todas as informações essenciais de cada equipamento. Padroniza o preenchimento e garante que o acervo esteja sempre organizado, rastreável e pronto para auditoria.
 
-Com ele, é possível manter um inventário organizado, padronizar o preenchimento das informações e facilitar o gerenciamento dos ativos durante todo o seu ciclo de vida.
+## Para que serve
 
----
+- **Centralizar o cadastro** — Patrimônio, fabricante, modelo, número de série, tipo, status e entidade responsável.
+- **Padronizar informações** — Formulário único que reduz cadastros incompletos e inconsistentes.
+- **Facilitar a gestão** — Consulta rápida, interface integrada ao GLPI e visão do ciclo de vida do ativo.
+- **Apoiar auditorias** — Dados consistentes para inventários periódicos e controle patrimonial.
 
-## ✨ Funcionalidades
+## Destaques
 
-* Cadastro completo de ativos.
-* Registro do número de patrimônio.
-* Identificação do fabricante e modelo.
-* Registro de número de série.
-* Definição do tipo de ativo.
-* Controle do status do equipamento.
-* Associação à entidade responsável.
-* Campos para observações adicionais.
-* Consulta rápida das informações cadastradas.
-* Interface integrada ao GLPI.
+- Cadastro completo com campos de observação
+- Integração total com o GLPI
+- Interface leve e familiar para quem já usa a plataforma
+- Controle de permissões por perfil
 
----
+## Tecnologias
 
-## 🎯 Objetivos
+GLPI 11 · PHP 8 · MySQL/MariaDB
 
-* Centralizar o cadastro de ativos.
-* Padronizar as informações do inventário.
-* Melhorar a organização patrimonial.
-* Facilitar a localização e identificação dos equipamentos.
-* Reduzir erros e cadastros incompletos.
-* Auxiliar na gestão do ciclo de vida dos ativos.
+## Licença
+
+GPL v2+
 
 ---
-
-## 🖥️ Compatibilidade
-
-* GLPI 11.x
-* PHP 8.x
-
-> A compatibilidade pode variar conforme a versão do GLPI utilizada.
-
----
-
-## 🚀 Benefícios
-
-* Cadastro padronizado.
-* Melhor organização do inventário.
-* Maior controle sobre os ativos.
-* Facilidade para auditorias e inventários.
-* Redução de inconsistências nos registros.
-* Informações centralizadas e de fácil acesso.
-
----
-
-## 🤝 Contribuições
-
-Contribuições são bem-vindas.
-
-Caso encontre algum problema ou tenha sugestões de melhoria, abra uma **Issue** ou envie um **Pull Request**.
-
----
-
-## 📄 Licença
-
-Este projeto é distribuído sob a licença **GPL v2+**.
-
----
-
-## 👨‍💻 Autor
-
-Desenvolvido por **Leonardo Poiatti Fação**.
+*Plugin mantido pela equipe de TI.*

@@ -7,7 +7,7 @@ use Session;
 
 class Menu extends CommonGLPI
 {
-    public static $rightname = 'plugin_cadastroativos_use';
+    public static string $rightname = 'plugin_cadastroativos_use';
 
     public static function getMenuName(int $nb = 0): string
     {

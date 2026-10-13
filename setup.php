@@ -5,15 +5,21 @@ use GlpiPlugin\Cadastroativos\Menu;
 
 include_once __DIR__ . '/hook.php';
 
-define('PLUGIN_CADASTROATIVOS_VERSION', '1.6.0');
+require_once __DIR__ . '/src/compat.php';
+
+define('PLUGIN_CADASTROATIVOS_VERSION', '1.7.0');
 define('PLUGIN_CADASTROATIVOS_MIN_GLPI_VERSION', '11.0.0');
-define('PLUGIN_CADASTROATIVOS_MAX_GLPI_VERSION', '11.99.99');
+define('PLUGIN_CADASTROATIVOS_MAX_GLPI_VERSION', '12.0.99');
 
 function plugin_init_cadastroativos(): void
 {
     global $PLUGIN_HOOKS;
 
-    $PLUGIN_HOOKS['csrf_compliant']['cadastroativos'] = true;
+    // CSRF compliance - no GLPI 12 o hook foi removido (CheckCsrfListener cuida);
+    // mantém true apenas no GLPI <12 (mesmo esquema do kanpro/protocolo/assetmgrstatus).
+    if (!ca_is_glpi12_plus()) {
+        $PLUGIN_HOOKS['csrf_compliant']['cadastroativos'] = true;
+    }
 
     Plugin::registerClass('PluginCadastroativosProfile', [
         'addtabon' => ['Profile'],

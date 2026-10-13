@@ -71,7 +71,7 @@ final class CadastroController extends AbstractController
 
         $currentEntityId = AssetManager::getCurrentEntityId();
         $availableTypes  = AssetManager::getAvailableTypes();
-        $entityName      = Html::cleanInputText(Dropdown::getDropdownName('glpi_entities', $currentEntityId));
+        $entityName      = htmlspecialchars(Dropdown::getDropdownName('glpi_entities', $currentEntityId));
 
         $typeConfig = [
             'Celular'             => ['icon' => 'fa-mobile-alt',  'color' => '#6366f1', 'group' => 'base'],
@@ -235,7 +235,7 @@ final class CadastroController extends AbstractController
                     <p><i class="fas fa-building" style="margin-right:4px"></i><?= $entityName ?></p>
                 </div>
                 <div class="ca-header-actions">
-                    <a href="<?= Html::cleanInputText(($CFG_GLPI['root_doc'] ?? '') . '/plugins/assetmgrstatus/front/maintenance.php') ?>" class="ca-btn-inventario" target="_blank" rel="noopener">
+                    <a href="<?= htmlspecialchars(($CFG_GLPI['root_doc'] ?? '') . '/plugins/assetmgrstatus/front/maintenance.php') ?>" class="ca-btn-inventario" target="_blank" rel="noopener">
                         <i class="fas fa-boxes-stacked"></i> Inventario
                     </a>
                 </div>
@@ -292,13 +292,13 @@ final class CadastroController extends AbstractController
                         <?php foreach ($grupo['types'] as $sn => $label):
                             $cfg   = $typeConfig[$sn] ?? ['icon' => 'fa-box', 'color' => '#6b7280'];
                         ?>
-                        <div class="ca-type-btn" data-value="<?= Html::cleanInputText($sn) ?>" <?= $sn === 'PlataformadeRecarga' ? 'data-hide-modelo="1"' : '' ?> tabindex="0">
-                            <input type="radio" name="_tipo_radio" value="<?= Html::cleanInputText($sn) ?>">
+                        <div class="ca-type-btn" data-value="<?= htmlspecialchars($sn) ?>" <?= $sn === 'PlataformadeRecarga' ? 'data-hide-modelo="1"' : '' ?> tabindex="0">
+                            <input type="radio" name="_tipo_radio" value="<?= htmlspecialchars($sn) ?>">
                             <div class="ca-type-check"><i class="fas fa-check"></i></div>
                             <div class="ca-type-icon" style="background:<?= $cfg['color'] ?>22;color:<?= $cfg['color'] ?>">
                                 <i class="fas <?= $cfg['icon'] ?>"></i>
                             </div>
-                            <span class="ca-type-label"><?= Html::cleanInputText($label) ?></span>
+                            <span class="ca-type-label"><?= htmlspecialchars($label) ?></span>
                         </div>
                         <?php endforeach; ?>
                         </div>

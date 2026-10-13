@@ -70,7 +70,7 @@ final class ImportarXlsxController extends AbstractController
             $usersId  = (int) Session::getLoginUserID();
             $filename = $file->getClientOriginalName();
             $entityNameRaw = \Dropdown::getDropdownName('glpi_entities', $entityId);
-            $entityName = \Html::cleanInputText($entityNameRaw);
+            $entityName = htmlspecialchars($entityNameRaw);
 
             // === Validacao CIE vs entidade atual (bloqueia se planilha pertence a outra entidade) ===
             $sheetCies = [];

@@ -22,7 +22,7 @@ O **Cadastro de Ativos** simplifica o inventário dentro do GLPI, reunindo em um
 
 ## Tecnologias
 
-GLPI 11 · PHP 8 · MySQL/MariaDB
+GLPI 11–12 · PHP 8.1+ · MySQL/MariaDB
 
 ## Licença
 
